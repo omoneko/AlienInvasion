@@ -15,6 +15,9 @@ namespace AlienInvasion.Game.Loading
             base.OnLevelLoaded(mode);
             try
             {
+                // SetTool<T>() が起動できるよう、まずカスタム配置ツールを ToolController へ登録する。
+                // これを行わないと SetTool は辞書に無く null を返し、ボタン/F7 が空振りする。
+                UI.ToolRegistration.Register<UI.MothershipPlacementTool>();
                 UI.InvasionUI.CreateButton();
             }
             catch (System.Exception e)
