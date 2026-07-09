@@ -5,9 +5,9 @@ namespace AlienInvasion.Game
 {
     /// <summary>
     /// 1回の襲来イベントの統括。
-    /// UpdateVisual: メインスレッド専用(GameObject操作・フェーズタイマー・状態遷移の書き込み元)。
+    /// StartInvasion / UpdateVisual: いずれもメインスレッド専用(GameObject操作・フェーズタイマー・状態遷移の書き込み元)。
     /// UpdateSimulation: シミュレーションスレッド専用(DisasterHelpers/汚染書込)。
-    /// InvasionState/フェーズタイマーは UpdateVisual からのみ書き込む(single-writer)。
+    /// InvasionState/フェーズタイマーは StartInvasion と UpdateVisual からのみ書き込む(single-writer、書き込み元は常にメインスレッド)。
     /// UpdateSimulation は状態を読むのみで書き込まない。
     /// </summary>
     public static class InvasionManager
@@ -25,6 +25,10 @@ namespace AlienInvasion.Game
             get { return _state != InvasionState.Idle; }
         }
 
+        /// <summary>
+        /// メインスレッド専用。Mothership の生成(Object.Instantiate/transform操作)と _state の書き込みを行うため、
+        /// UpdateVisual と同じスレッド境界規律に従い、シミュレーションスレッドから呼び出してはならない。
+        /// </summary>
         public static void StartInvasion(Vector3 targetPosition)
         {
             if (_state != InvasionState.Idle) return;
@@ -45,7 +49,7 @@ namespace AlienInvasion.Game
             {
                 if (_state == InvasionState.Done)
                 {
-                    _state = InvasionState.Idle;
+                    _state = InvasionStateMachine.Next(_state);
                     return;
                 }
 
@@ -140,6 +144,9 @@ namespace AlienInvasion.Game
                 }
                 else if (_state == InvasionState.Idle)
                 {
+                    // 防御的な二重リセット: StartInvasion の一次リセットは既に行われているはずだが、
+                    // 万一 UpdateSimulation が次サイクルの StartInvasion 実行前に Idle を観測した場合に備え、
+                    // ここでも _bombardResolved を false に揃えておく(現状のロジックでは必須ではない安全策)。
                     _bombardResolved = false;
                 }
             }
