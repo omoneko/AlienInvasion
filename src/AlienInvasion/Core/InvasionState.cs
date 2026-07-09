@@ -1,12 +1,17 @@
 namespace AlienInvasion.Core
 {
-    /// <summary>1回の襲来イベントの進行状態。Idle→Descending→Bombarding→Ascending→Done→Idle の一方向循環。</summary>
+    /// <summary>
+    /// 1回の襲来イベントの進行状態。
+    /// Idle→Descending→Bombarding→Ascending→TripodDeploy→TripodsActive→Done→Idle の一方向循環。
+    /// </summary>
     public enum InvasionState
     {
         Idle,
         Descending,
         Bombarding,
         Ascending,
+        TripodDeploy,
+        TripodsActive,
         Done
     }
 
@@ -25,7 +30,9 @@ namespace AlienInvasion.Core
                 case InvasionState.Idle: return InvasionState.Descending;
                 case InvasionState.Descending: return InvasionState.Bombarding;
                 case InvasionState.Bombarding: return InvasionState.Ascending;
-                case InvasionState.Ascending: return InvasionState.Done;
+                case InvasionState.Ascending: return InvasionState.TripodDeploy;
+                case InvasionState.TripodDeploy: return InvasionState.TripodsActive;
+                case InvasionState.TripodsActive: return InvasionState.Done;
                 case InvasionState.Done: return InvasionState.Idle;
                 default: return InvasionState.Idle;
             }

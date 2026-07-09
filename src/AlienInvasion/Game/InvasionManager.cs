@@ -95,6 +95,14 @@ namespace AlienInvasion.Game
                     case InvasionState.Ascending:
                         UpdateAscending();
                         break;
+                    case InvasionState.TripodDeploy:
+                    case InvasionState.TripodsActive:
+                        // Task 4 でトライポッド召喚/移動/ビームに置き換える暫定処理。
+                        // 現時点では実体が無いため即座に次状態へ進め、
+                        // Ascending 後に Done/Idle へ戻る既存フローを維持する(スタック防止)。
+                        _state = InvasionStateMachine.Next(_state);
+                        _phaseElapsed = 0f;
+                        break;
                 }
             }
             catch (System.Exception e)
