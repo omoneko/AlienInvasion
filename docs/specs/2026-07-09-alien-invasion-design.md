@@ -58,7 +58,7 @@ AlienInvasion/
     ├─ ContaminationManager.cs            # 汚染ゾーン台帳＋適用/維持/クリア
     ├─ PollutionField.cs                  # NaturalResourceManagerへの汚染読み書き
     ├─ Simulation/InvasionThreadingExtension.cs   # 毎tickで襲来と汚染を駆動
-    └─ Serialization/InvasionDataExtension.cs     # 進行中の襲来＋汚染をセーブ/ロード
+    └─ Serialization/InvasionDataExtension.cs     # 汚染ゾーン台帳をセーブ/ロード（襲来状態は非永続・レベルロード時にリセット）
 ```
 
 依存の向き: `Game/* → Core/*`（一方向）。`Core/*` は他に依存しない。
@@ -105,7 +105,10 @@ Descending → Bombarding → Ascending → TripodDeploy → TripodsActive → D
 
 ## 10. 永続化・安全性
 
-- 進行中の襲来状態と汚染ゾーンを `ISerializableData` でセーブ/ロード保持。
+- 汚染ゾーン台帳のみ `ISerializableData` でセーブ/ロード保持。進行中の襲来状態(InvasionManager)は
+  フェーズ1では永続化せず、レベルロード毎に `InvasionManager.ResetForNewLevel()` で強制的に
+  Idle へリセットする（別セーブへの切り替え時に旧レベルの残留状態が誤って作用しないための
+  意図的な簡略化。再開ではなく破棄）。
 - 全 tick / 生成 / エフェクト / 直列化処理は try/catch で保護し、例外をゲーム本体へ伝播させない。
 - **AssetBundle / prefab が読めない場合**: ログを出して該当演出をスキップ（ゲームを巻き込まない）。
 - console 出力は残さず、ログは `Debug.Log` に接頭辞 `[AlienInvasion]` を付けてのみ。

@@ -26,6 +26,35 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
+        /// レベルロード時(InvasionDataExtension.OnLoadData)専用。メインスレッドで呼ばれる。
+        /// 別セーブへの切り替え時に、旧レベルの静的状態(_state/_target等)が残留して
+        /// 新レベルのシミュレーションに誤って作用する(誤破壊等)のを防ぐため、
+        /// 進行中の襲来を強制的に破棄しIdleへ戻す。フェーズ1では襲来状態自体は
+        /// セーブデータに永続化されないため、再開ではなくリセットが正しい挙動。
+        /// </summary>
+        public static void ResetForNewLevel()
+        {
+            try
+            {
+                _state = InvasionState.Idle;
+                if (_ship != null)
+                {
+                    _ship.Destroy();
+                    _ship = null;
+                }
+                _target = default(Vector3);
+                _phaseElapsed = 0f;
+                _strikeTimer = 0f;
+                _craterProgress = 0f;
+                _bombardResolved = false;
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("ResetForNewLevel error: " + e);
+            }
+        }
+
+        /// <summary>
         /// メインスレッド専用。Mothership の生成(Object.Instantiate/transform操作)と _state の書き込みを行うため、
         /// UpdateVisual と同じスレッド境界規律に従い、シミュレーションスレッドから呼び出してはならない。
         /// </summary>

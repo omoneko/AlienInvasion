@@ -7,27 +7,38 @@ namespace AlienInvasion.Game
     public static class ContaminationManager
     {
         private static List<ContaminationZone> _zones = new List<ContaminationZone>();
+        private static readonly object _lock = new object();
 
+        /// <summary>
+        /// _zones はメインスレッド(Sync読取)とシミュレーションスレッド(AddZone/RemoveZoneAt書込)の
+        /// 双方から触られるため、List&lt;T&gt;の非スレッドセーフ性への対策として _lock で保護する。
+        /// ロック範囲は _zones の読み書きのみに限定し、GridMath/PollutionField/NaturalResourceManager
+        /// 呼び出しはロック外で行う。
+        /// </summary>
         public static List<ContaminationZone> Zones
         {
-            get { return new List<ContaminationZone>(_zones); }
+            get { lock (_lock) { return new List<ContaminationZone>(_zones); } }
         }
 
         public static void ReplaceAll(List<ContaminationZone> zones)
         {
-            _zones = zones ?? new List<ContaminationZone>();
-            for (int i = 0; i < _zones.Count; i++) ReassertZone(_zones[i]);
+            List<ContaminationZone> newZones = zones ?? new List<ContaminationZone>();
+            lock (_lock) { _zones = newZones; }
+            for (int i = 0; i < newZones.Count; i++) ReassertZone(newZones[i]);
         }
 
         public static void AddZone(ContaminationZone zone)
         {
-            _zones.Add(zone);
+            lock (_lock) { _zones.Add(zone); }
             ReassertZone(zone);
         }
 
         public static void RemoveZoneAt(int index)
         {
-            if (index >= 0 && index < _zones.Count) _zones.RemoveAt(index);
+            lock (_lock)
+            {
+                if (index >= 0 && index < _zones.Count) _zones.RemoveAt(index);
+            }
         }
 
         public static void ReassertZone(ContaminationZone zone)
