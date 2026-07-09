@@ -67,6 +67,9 @@ namespace AlienInvasion.Game.Simulation
 
                 MaybeRollRandomInvasion(realTimeDelta);
 
+                // 災害パネルは遅延生成されることがあるため、取り付け完了まで毎フレーム試行する。
+                UI.InvasionUI.EnsureAttached();
+
                 InvasionManager.UpdateVisual(realTimeDelta);
                 RedContaminationVisual.Sync(ContaminationManager.Zones);
             }
@@ -128,11 +131,11 @@ namespace AlienInvasion.Game.Simulation
             for (int i = zones.Count - 1; i >= 0; i--)
             {
                 ContaminationZone zone = zones[i];
-                if (ExpiryClock.HasExpired(zone.StartTicks, nowTicks, ModConfig.ExpiryYears))
+                if (ExpiryClock.HasExpired(zone.StartTicks, nowTicks, ModConfig.ExpiryMonths))
                 {
                     ContaminationManager.ClearZone(zone);
                     ContaminationManager.RemoveZoneAt(i);
-                    ModConfig.Log("contamination zone expired (" + ModConfig.ExpiryYears + "y) and cleared");
+                    ModConfig.Log("contamination zone expired (" + ModConfig.ExpiryMonths + "mo) and cleared");
                     continue;
                 }
                 ContaminationManager.ReassertZone(zone);
