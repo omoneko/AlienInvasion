@@ -22,14 +22,20 @@ namespace AlienInvasion.Game.Simulation
     /// 呼ぶことはこの契約に違反し、実際に診断困難な破損/クラッシュを招きうる。
     ///
     /// そのため、このクラスでは:
-    /// - OnUpdate (メインスレッド) : 手動キー(F7)判定 と ランダム発動抽選 の両方を行い、
-    ///   どちらも同じメインスレッドから InvasionManager.StartInvasion を呼ぶ。
+    /// - OnUpdate (メインスレッド) : 手動キー(F7)判定 と ランダム発動抽選 の両方を行う。
+    ///   ランダム抽選はここから直接 InvasionManager.StartInvasion を呼ぶ(メインスレッド)。
     ///   ランダム抽選には SimulationManager.instance.m_randomizer (シミュレーションスレッド用の
     ///   決定論的RNG) ではなく、UnityEngine.Random (メインスレッドセーフ) を用いる。
     ///   この抽選は「どの/いつ 1回限りの演出イベントを開始するか」を決めるだけで、
     ///   セーブに永続化されリプレイ時に再現される必要のある値ではないため、
     ///   フレームベースのUnity RNGで問題ない(他の汚染深刻度ロールのような
     ///   セーブ/リプレイ一致が必要なケースとは異なる)。
+    ///   手動キー(F7)は Task 16 でバニラ災害と同じ「狙って左クリックで確定」の操作感に
+    ///   統一するため、直接 StartInvasion を呼ばず ToolsModifierControl.SetTool
+    ///   で AlienInvasion.Game.UI.MothershipPlacementTool を起動するだけに変更した
+    ///   (実際の StartInvasion 呼び出しはそのツールの OnToolGUI 側、これもメインスレッド)。
+    ///   UIの「UFO召喚」ボタン(InvasionUI)も同じツールを起動するため、F7とボタンは
+    ///   完全に同じ体験になる。
     /// - OnAfterSimulationTick (シミュレーションスレッド) : InvasionManager.UpdateSimulation
     ///   と 汚染ゾーンの維持/期限処理 のみを行う。GameObjectに触れる処理や
     ///   StartInvasion/UpdateVisual/RedContaminationVisual.Sync の呼び出しは一切含まない。
@@ -53,8 +59,10 @@ namespace AlienInvasion.Game.Simulation
             {
                 if (Input.GetKeyDown(ModConfig.ManualTriggerKey) && !InvasionManager.IsActive)
                 {
-                    Vector3 target = PickManualTargetPosition();
-                    InvasionManager.StartInvasion(target);
+                    // Task 16: F7は即時発動ではなく、UIボタンと同じ配置ツール(狙って左クリックで確定)を
+                    // 起動するだけに変更。実際の StartInvasion 呼び出しは
+                    // MothershipPlacementTool.OnToolGUI (メインスレッド上のツールUIイベント)側で行う。
+                    ToolsModifierControl.SetTool<AlienInvasion.Game.UI.MothershipPlacementTool>();
                 }
 
                 MaybeRollRandomInvasion(realTimeDelta);
@@ -79,13 +87,6 @@ namespace AlienInvasion.Game.Simulation
             {
                 ModConfig.LogError("OnAfterSimulationTick error: " + e);
             }
-        }
-
-        private static Vector3 PickManualTargetPosition()
-        {
-            // カメラ中心の地表位置を狙う簡易実装
-            Vector3 camPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
-            return new Vector3(camPos.x, 0f, camPos.z);
         }
 
         /// <summary>
