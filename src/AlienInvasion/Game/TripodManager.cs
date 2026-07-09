@@ -169,11 +169,15 @@ namespace AlienInvasion.Game
         /// <summary>現在の各トライポッド座標のスナップショット(UpdateSimulation のsim読取用)。メイン/sim どちらからでも読める。</summary>
         public static Vector3[] SnapshotPositions()
         {
-            if (_tripods == null) return new Vector3[0];
-            var result = new Vector3[_tripods.Length];
-            for (int i = 0; i < _tripods.Length; i++)
+            // ローカルに配列参照を退避してから読む。メインスレッドの DespawnAll が
+            // ガード判定と要素アクセスの間に _tripods を null 化しても、退避済み参照を
+            // 走査するため NRE にならない(TOCTOU 回避)。
+            Tripod[] tripods = _tripods;
+            if (tripods == null) return new Vector3[0];
+            var result = new Vector3[tripods.Length];
+            for (int i = 0; i < tripods.Length; i++)
             {
-                result[i] = _tripods[i] != null ? _tripods[i].Position : default(Vector3);
+                result[i] = tripods[i] != null ? tripods[i].Position : default(Vector3);
             }
             return result;
         }

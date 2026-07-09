@@ -161,7 +161,7 @@ namespace AlienInvasion.Game
             {
                 _ship.Destroy();
                 _ship = null;
-                _state = InvasionStateMachine.Next(_state); // -> Done
+                _state = InvasionStateMachine.Next(_state); // -> TripodDeploy
             }
         }
 
