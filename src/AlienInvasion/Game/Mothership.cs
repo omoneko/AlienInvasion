@@ -19,6 +19,16 @@ namespace AlienInvasion.Game
             {
                 _gameObject = Object.Instantiate(prefab);
                 _gameObject.transform.position = Position;
+                _gameObject.transform.localScale = Vector3.one * ModConfig.MothershipScale;
+            }
+        }
+
+        /// <summary>母船を世界Y軸周りにゆっくり回転させる演出。メインスレッド専用。null安全。</summary>
+        public void Spin(float dt)
+        {
+            if (_gameObject != null)
+            {
+                _gameObject.transform.Rotate(0f, ModConfig.MothershipSpinDegPerSec * dt, 0f, Space.World);
             }
         }
 

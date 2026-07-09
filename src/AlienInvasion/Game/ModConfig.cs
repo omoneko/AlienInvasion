@@ -19,6 +19,8 @@ namespace AlienInvasion.Game
         public const float BombardSeconds = 10f;
         public const float StrikeIntervalSeconds = 0.6f;
         public const float AscendSeconds = 5f;
+        public const float MothershipSpinDegPerSec = 20f;  // 母船の水平回転速度(度/秒)
+        public const float MothershipScale = 1f;           // prefab 生成時のスケール(実機で調整)
 
         // --- 陥没穴(シンクホール)/破壊(累積値。Bombarding中に徐々に成長し、終了時に確定) ---
         // バニラの災害規模5.5(内部intensity=55)のシンクホールと同等になるよう SinkholeAI の式で算出:

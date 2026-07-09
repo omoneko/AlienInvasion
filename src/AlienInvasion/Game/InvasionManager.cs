@@ -87,13 +87,13 @@ namespace AlienInvasion.Game
                 switch (_state)
                 {
                     case InvasionState.Descending:
-                        UpdateDescending();
+                        UpdateDescending(realTimeDelta);
                         break;
                     case InvasionState.Bombarding:
                         UpdateBombarding(realTimeDelta);
                         break;
                     case InvasionState.Ascending:
-                        UpdateAscending();
+                        UpdateAscending(realTimeDelta);
                         break;
                     case InvasionState.TripodDeploy:
                     case InvasionState.TripodsActive:
@@ -111,12 +111,13 @@ namespace AlienInvasion.Game
             }
         }
 
-        private static void UpdateDescending()
+        private static void UpdateDescending(float realTimeDelta)
         {
             float t = _phaseElapsed / ModConfig.DescendSeconds;
             float eased = MovementMath.EaseInOut(t);
             float altitude = MovementMath.Lerp(ModConfig.MothershipStartAltitude, ModConfig.MothershipHoverAltitude, eased);
             _ship.SetAltitude(altitude);
+            _ship.Spin(realTimeDelta);
             if (t >= 1f)
             {
                 _state = InvasionStateMachine.Next(_state);
@@ -127,6 +128,7 @@ namespace AlienInvasion.Game
         private static void UpdateBombarding(float realTimeDelta)
         {
             _ship.SetAltitude(ModConfig.MothershipHoverAltitude);
+            _ship.Spin(realTimeDelta);
             _strikeTimer += realTimeDelta;
             if (_strikeTimer >= ModConfig.StrikeIntervalSeconds)
             {
@@ -149,12 +151,13 @@ namespace AlienInvasion.Game
             }
         }
 
-        private static void UpdateAscending()
+        private static void UpdateAscending(float realTimeDelta)
         {
             float t = _phaseElapsed / ModConfig.AscendSeconds;
             float eased = MovementMath.EaseInOut(t);
             float altitude = MovementMath.Lerp(ModConfig.MothershipHoverAltitude, ModConfig.MothershipStartAltitude, eased);
             _ship.SetAltitude(altitude);
+            _ship.Spin(realTimeDelta);
             if (t >= 1f)
             {
                 _ship.Destroy();
