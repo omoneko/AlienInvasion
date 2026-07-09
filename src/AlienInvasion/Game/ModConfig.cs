@@ -11,6 +11,7 @@ namespace AlienInvasion.Game
         public const string AssetBundleFileName = "alieninvasion.bundle";
         public const string MothershipPrefabName = "Mothership";
         public const string RedDecalPrefabName = "ContaminationDecal";
+        public const string TripodPrefabName = "Tripod";
 
         // --- 母船の飛行 ---
         public const float MothershipStartAltitude = 800f;   // 出現高度(地表からの相対高さ)
@@ -30,6 +31,16 @@ namespace AlienInvasion.Game
         public const float CraterDepthMax = 43.5f;
         public const float StrikeScatterRadius = 15f;   // 落雷点を中心からランダムにずらす範囲
         public const float DestructionRadius = 70f;     // Bombarding終了時に建物破壊する半径
+
+        // --- トライポッド(召喚・自由移動) ---
+        public const int TripodCount = 3;
+        public const float TripodSpeed = 30f;                // 水平移動速度(units/秒)
+        public const float TripodActiveSeconds = 40f;        // 出現から消滅までの活動時間
+        public const float TripodTurnIntervalSeconds = 2.5f; // 方向転換の間隔
+        public const float TripodTurnMaxDeg = 60f;           // 1回の方向転換の最大角(±)
+        public const float TripodScale = 1f;
+        public const float TripodSpawnScatter = 40f;         // クレーター中心からの初期散布半径
+        public const float TripodMapHalfExtent = 8500f;      // 移動境界(マップ半径目安。既存ランダム発動と同値)
 
         // --- 汚染(赤) ---
         public const int ExpiryMonths = 2;              // 汚染が消滅するまでのゲーム内時間(月)

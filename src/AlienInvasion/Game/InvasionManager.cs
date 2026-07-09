@@ -42,6 +42,7 @@ namespace AlienInvasion.Game
                     _ship.Destroy();
                     _ship = null;
                 }
+                TripodManager.ResetForNewLevel();
                 _target = default(Vector3);
                 _phaseElapsed = 0f;
                 _strikeTimer = 0f;
@@ -96,12 +97,10 @@ namespace AlienInvasion.Game
                         UpdateAscending(realTimeDelta);
                         break;
                     case InvasionState.TripodDeploy:
+                        UpdateTripodDeploy();
+                        break;
                     case InvasionState.TripodsActive:
-                        // Task 4 でトライポッド召喚/移動/ビームに置き換える暫定処理。
-                        // 現時点では実体が無いため即座に次状態へ進め、
-                        // Ascending 後に Done/Idle へ戻る既存フローを維持する(スタック防止)。
-                        _state = InvasionStateMachine.Next(_state);
-                        _phaseElapsed = 0f;
+                        UpdateTripodsActive(realTimeDelta);
                         break;
                 }
             }
@@ -163,6 +162,33 @@ namespace AlienInvasion.Game
                 _ship.Destroy();
                 _ship = null;
                 _state = InvasionStateMachine.Next(_state); // -> Done
+            }
+        }
+
+        /// <summary>
+        /// 3体のトライポッドを母船クレーター跡付近に召喚し、即座に TripodsActive へ進める
+        /// (この状態は1フレームのみの処理であり、次フレームから移動を開始する)。メインスレッド専用。
+        /// </summary>
+        private static void UpdateTripodDeploy()
+        {
+            TripodManager.Spawn(_target);
+            _state = InvasionStateMachine.Next(_state); // -> TripodsActive
+            _phaseElapsed = 0f;
+        }
+
+        /// <summary>
+        /// トライポッドの自由移動を進め、活動時間(TripodActiveSeconds)を超えたら全体を消滅させて
+        /// Done へ進める。移動計算(TripodManager.UpdateVisual)は GameObject の有無に関わらず継続するため、
+        /// AssetBundle未生成でもタイマーはハングせずに進行する。メインスレッド専用。
+        /// </summary>
+        private static void UpdateTripodsActive(float realTimeDelta)
+        {
+            TripodManager.UpdateVisual(realTimeDelta);
+            if (TripodManager.IsFinished)
+            {
+                TripodManager.DespawnAll();
+                _state = InvasionStateMachine.Next(_state); // -> Done
+                _phaseElapsed = 0f;
             }
         }
 
