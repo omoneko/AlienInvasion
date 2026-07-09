@@ -17,8 +17,7 @@ namespace AlienInvasion.Game
         private static Vector3 _target;
         private static float _phaseElapsed;
         private static float _strikeTimer;
-        private static float _craterProgress; // 0..1
-        private static bool _bombardResolved;  // Bombarding終了時の建物破壊/汚染登録が完了したか
+        private static bool _bombardResolved;  // Bombarding終了時の陥没/建物破壊/汚染登録が完了したか
 
         public static bool IsActive
         {
@@ -46,7 +45,6 @@ namespace AlienInvasion.Game
                 _target = default(Vector3);
                 _phaseElapsed = 0f;
                 _strikeTimer = 0f;
-                _craterProgress = 0f;
                 _bombardResolved = false;
             }
             catch (System.Exception e)
@@ -67,7 +65,6 @@ namespace AlienInvasion.Game
             _state = InvasionState.Descending;
             _phaseElapsed = 0f;
             _strikeTimer = 0f;
-            _craterProgress = 0f;
             _bombardResolved = false;
             ModConfig.Log("Invasion started at " + targetPosition);
         }
@@ -139,10 +136,8 @@ namespace AlienInvasion.Game
                 Effects.PlayLightningStrike(groundPoint, _ship.SkyPointForBolt());
             }
 
-            float t = _phaseElapsed / ModConfig.BombardSeconds;
-            if (t > 1f) t = 1f;
-            _craterProgress = t;
-
+            // 陥没穴は Bombarding 終了時に ResolveBombardDamage で1回だけ形成する
+            // (MakeCrater を毎tick呼ぶと相対掘削が累積して異常に深くなるため。ModConfig 参照)。
             if (_phaseElapsed >= ModConfig.BombardSeconds)
             {
                 _state = InvasionStateMachine.Next(_state);
@@ -197,13 +192,7 @@ namespace AlienInvasion.Game
         {
             try
             {
-                if (_state == InvasionState.Bombarding && _craterProgress > 0f)
-                {
-                    float radius = ModConfig.CraterRadiusMax * _craterProgress;
-                    float depth = ModConfig.CraterDepthMax * _craterProgress;
-                    DisasterHelpers.MakeCrater(new Vector2(_target.x, _target.z), radius, depth, false);
-                }
-                else if (_state == InvasionState.Ascending && !_bombardResolved)
+                if (_state == InvasionState.Ascending && !_bombardResolved)
                 {
                     _bombardResolved = true;
                     ResolveBombardDamage();
@@ -228,6 +217,10 @@ namespace AlienInvasion.Game
 
         private static void ResolveBombardDamage()
         {
+            // 陥没穴を1回だけ形成する(バニラ災害規模5.5相当。SinkholeAI と同じ MakeCrater 呼び出し)。
+            // 毎tickではなくここで1回だけ適用することで、相対掘削の累積による過剰な深さを防ぐ。
+            DisasterHelpers.MakeCrater(new Vector2(_target.x, _target.z), ModConfig.SinkholeRadius, ModConfig.SinkholeDepth, false);
+
             int seed = (int)SimulationManager.instance.m_randomizer.Int32(1000000u);
             // preRadius は totalRadius と同じ値にする(0だと何も破壊されないという既知の罠を回避)
             DisasterHelpers.DestroyStuff(seed, null, _target, ModConfig.DestructionRadius, ModConfig.DestructionRadius, 0f,

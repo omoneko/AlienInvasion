@@ -23,12 +23,15 @@ namespace AlienInvasion.Game
         public const float MothershipSpinDegPerSec = 20f;  // 母船の水平回転速度(度/秒)
         public const float MothershipScale = 1f;           // prefab 生成時のスケール(実機で調整)
 
-        // --- 陥没穴(シンクホール)/破壊(累積値。Bombarding中に徐々に成長し、終了時に確定) ---
-        // バニラの災害規模5.5(内部intensity=55)のシンクホールと同等になるよう SinkholeAI の式で算出:
+        // --- 陥没穴(シンクホール)/破壊 ---
+        // バニラの災害規模5.5(内部intensity=55)のシンクホールと同等。SinkholeAI の式:
         //   width = m_holeWidth(50) * (55*0.01) + 16 = 43.5,  depth = m_holeDepth(50) * (55*0.01) + 16 = 43.5
-        //   実際の MakeCrater 呼び出しは radius = width * 0.5 = 21.75, depth = 43.5 (raiseEdges:false)。
-        public const float CraterRadiusMax = 21.75f;
-        public const float CraterDepthMax = 43.5f;
+        //   MakeCrater(pos, radius = width*0.5 = 21.75, depth = 43.5, raiseEdges:false)。
+        // MakeCrater は「現在の地表高さから相対的に掘り下げ、絶対0mでクランプ」する。毎tick呼ぶと
+        // 累積して地形最下限まで掘れて異常に深くなるため、Bombarding終了時にちょうど1回だけ適用する
+        // (= バニラ level5.5 と同じ1回ぶんの陥没量)。
+        public const float SinkholeRadius = 21.75f;
+        public const float SinkholeDepth = 43.5f;
         public const float StrikeScatterRadius = 15f;   // 落雷点を中心からランダムにずらす範囲
         public const float DestructionRadius = 70f;     // Bombarding終了時に建物破壊する半径
 

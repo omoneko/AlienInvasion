@@ -11,7 +11,7 @@ namespace AlienInvasion.Game
     /// UpdateSimulation はシミュレーションスレッド専用(DisasterHelpers/汚染書込のみ。
     /// GameObject/Transform/Effects/_tripods配列そのものへの書き込みは一切行わない)。
     /// SnapshotPositions() は読み取り専用アクセサで、UpdateSimulation から読まれる。書き込み元は
-    /// 常にメインスレッドのみであり、これは既存の _target/_craterProgress と同じ「良性レース」の
+    /// 常にメインスレッドのみであり、これは既存の InvasionManager._target と同じ「良性レース」の
     /// 許容範囲に従う(Tripod.Position 自体は不変な Vector3 の差し替えなので、読み取り側が
     /// 半端な値を見ることはない)。
     /// </summary>
