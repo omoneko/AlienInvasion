@@ -164,7 +164,7 @@ namespace AlienInvasion.Game
                 {
                     float radius = ModConfig.CraterRadiusMax * _craterProgress;
                     float depth = ModConfig.CraterDepthMax * _craterProgress;
-                    DisasterHelpers.MakeCrater(new Vector2(_target.x, _target.z), radius, depth, true);
+                    DisasterHelpers.MakeCrater(new Vector2(_target.x, _target.z), radius, depth, false);
                 }
                 else if (_state == InvasionState.Ascending && !_bombardResolved)
                 {
@@ -195,7 +195,7 @@ namespace AlienInvasion.Game
             long startTicks = SimulationManager.instance.m_currentGameTime.Ticks;
             var zone = new ContaminationZone(_target.x, _target.z, ModConfig.ContaminationRadius, startTicks);
             ContaminationManager.AddZone(zone);
-            ModConfig.Log("Bombardment resolved: crater+destruction+contamination at " + _target);
+            ModConfig.Log("Bombardment resolved: sinkhole+destruction+contamination at " + _target);
         }
     }
 }

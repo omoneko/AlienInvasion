@@ -20,15 +20,15 @@ namespace AlienInvasion.Game
         public const float StrikeIntervalSeconds = 0.6f;
         public const float AscendSeconds = 5f;
 
-        // --- クレーター/破壊(累積値。Bombarding中に徐々に成長し、終了時に確定) ---
-        public const float CraterRadiusMax = 90f;
-        public const float CraterDepthMax = 22f;
+        // --- 陥没穴(シンクホール)/破壊(累積値。Bombarding中に徐々に成長し、終了時に確定) ---
+        public const float CraterRadiusMax = 55f;
+        public const float CraterDepthMax = 45f;
         public const float StrikeScatterRadius = 15f;   // 落雷点を中心からランダムにずらす範囲
         public const float DestructionRadius = 70f;     // Bombarding終了時に建物破壊する半径
 
         // --- 汚染(赤) ---
         public const int ExpiryYears = 1;
-        public const float ContaminationRadius = 90f;   // クレーター跡の汚染半径
+        public const float ContaminationRadius = 90f;   // 陥没穴跡の汚染半径
         public const byte MaxPollution = 255;
         public const float RedDecalYOffset = 0.3f;
 
