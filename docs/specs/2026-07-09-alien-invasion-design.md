@@ -130,7 +130,7 @@ Descending → Bombarding → Ascending → TripodDeploy → TripodsActive → D
 
 ## 14. 未確定事項（計画フェーズで解消）
 
-- CS の正確な Unity バージョン（AssetBundle ビルド用）。
+- ~~CS の正確な Unity バージョン（AssetBundle ビルド用）。~~ **解消**: `Cities.exe` 実体は Unity 5.6.7 ビルド（FileVersion 5.6.7.3267）。コミュニティ標準(cslmodding.info)は AssetBundle 作成に Unity Editor 5.6.6 を案内。5.6.x系は相互互換のため **Unity 5.6.6f2** を採用。
 - 雷エフェクトの入手元（既存 EffectInfo にあるか、自作が必要か）。
 - 赤デカール/プロップの配置・撤去API（`PropManager` 経由等）。
 - エフェクトの色指定（赤）が可能か、または赤い自作エフェクトが必要か。
