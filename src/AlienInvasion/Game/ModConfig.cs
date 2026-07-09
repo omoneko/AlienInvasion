@@ -42,6 +42,13 @@ namespace AlienInvasion.Game
         public const float TripodSpawnScatter = 40f;         // クレーター中心からの初期散布半径
         public const float TripodMapHalfExtent = 8500f;      // 移動境界(マップ半径目安。既存ランダム発動と同値)
 
+        // --- トライポッド(レーザー破壊・軌跡汚染) ---
+        public const float BeamIntervalSeconds = 1.5f;             // ビーム発射(=局所破壊)の間隔
+        public const float BeamDestroyRadius = 25f;                // 1回のビームで破壊する半径(局所)
+        public const float TripodTrailContamRadius = 30f;          // 軌跡に残す汚染半径
+        public const float TripodTrailContamIntervalSeconds = 3f;  // 軌跡汚染をスタンプする間隔
+        public const float BeamSkyOffset = 60f;                    // ビーム描画の上端(トライポッド頭上の高さ)
+
         // --- 汚染(赤) ---
         public const int ExpiryMonths = 2;              // 汚染が消滅するまでのゲーム内時間(月)
         public const float ContaminationRadius = 90f;   // 陥没穴跡の汚染半径

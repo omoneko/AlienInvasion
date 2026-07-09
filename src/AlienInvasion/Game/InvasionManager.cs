@@ -208,6 +208,10 @@ namespace AlienInvasion.Game
                     _bombardResolved = true;
                     ResolveBombardDamage();
                 }
+                else if (_state == InvasionState.TripodsActive)
+                {
+                    TripodManager.UpdateSimulation();
+                }
                 else if (_state == InvasionState.Idle)
                 {
                     // 防御的な二重リセット: StartInvasion の一次リセットは既に行われているはずだが、

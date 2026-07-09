@@ -11,6 +11,9 @@ namespace AlienInvasion.Game
         private static RainProperties _rainProperties;
         private static bool _rainPropertiesSearched;
 
+        private const float BeamLifetime = 0.12f;
+        private static Material _beamMaterial;
+
         public static void PlayLightningStrike(Vector3 groundPoint, Vector3 skyPoint)
         {
             try
@@ -58,6 +61,48 @@ namespace AlienInvasion.Game
             }
 
             Object.Destroy(go, BoltLifetime);
+        }
+
+        /// <summary>
+        /// トライポッドのレーザービームを一瞬描画する(赤・細身)。既存 PlayLightningStrike の
+        /// LineRenderer/マテリアルキャッシュ手法を流用。メインスレッド専用(GameObject操作のため)。
+        /// </summary>
+        public static void PlayBeam(Vector3 groundPoint, Vector3 from)
+        {
+            try
+            {
+                SpawnBeam(groundPoint, from);
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("PlayBeam error: " + e);
+            }
+        }
+
+        private static void SpawnBeam(Vector3 groundPoint, Vector3 from)
+        {
+            if (_beamMaterial == null)
+            {
+                Shader shader = Shader.Find("Particles/Additive");
+                if (shader != null) _beamMaterial = new Material(shader);
+            }
+
+            var go = new GameObject("AlienInvasion_TripodBeam");
+            var line = go.AddComponent<LineRenderer>();
+            line.useWorldSpace = true;
+            if (_beamMaterial != null) line.material = _beamMaterial;
+            line.startWidth = 1.5f;
+            line.endWidth = 0.5f;
+
+            Color beamColor = new Color(1f, 0.1f, 0.1f);
+            line.startColor = beamColor;
+            line.endColor = new Color(beamColor.r, beamColor.g, beamColor.b, 0.6f);
+
+            line.positionCount = 2;
+            line.SetPosition(0, from);
+            line.SetPosition(1, groundPoint);
+
+            Object.Destroy(go, BeamLifetime);
         }
 
         private static void PlayImpactBurst(Vector3 position)
