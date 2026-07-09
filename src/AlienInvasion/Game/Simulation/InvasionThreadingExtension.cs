@@ -1,0 +1,141 @@
+using System.Collections.Generic;
+using AlienInvasion.Core;
+using ICities;
+using UnityEngine;
+
+namespace AlienInvasion.Game.Simulation
+{
+    /// <summary>
+    /// 襲来の発動・進行・汚染維持を駆動する。
+    ///
+    /// スレッド設計(Task 11レビューで指摘された危険を踏まえた意図的な変更点):
+    /// ブリーフのサンプルコードは MaybeRollRandomInvasion (ランダム発動抽選) を
+    /// OnAfterSimulationTick (シミュレーションスレッド) に置き、そこから直接
+    /// InvasionManager.StartInvasion を呼ぶ形になっていた。しかし StartInvasion は
+    /// 内部で Mothership を new し、Mothership のコンストラクタは
+    /// UnityEngine.Object.Instantiate と transform.position の書き込みを行う ---
+    /// これらは Unity のメイン/レンダースレッド以外から呼ぶと未定義動作/破損の危険がある
+    /// 本物の GameObject/Transform 操作であり、Task 11 の InvasionManager.cs では
+    /// StartInvasion は明示的に「メインスレッド専用」とドキュメント化されている。
+    /// Cities: Skylines のシミュレーションtickはUnityのレンダースレッドとは別の
+    /// バックグラウンドスレッドで走るため、OnAfterSimulationTick から StartInvasion を
+    /// 呼ぶことはこの契約に違反し、実際に診断困難な破損/クラッシュを招きうる。
+    ///
+    /// そのため、このクラスでは:
+    /// - OnUpdate (メインスレッド) : 手動キー(F7)判定 と ランダム発動抽選 の両方を行い、
+    ///   どちらも同じメインスレッドから InvasionManager.StartInvasion を呼ぶ。
+    ///   ランダム抽選には SimulationManager.instance.m_randomizer (シミュレーションスレッド用の
+    ///   決定論的RNG) ではなく、UnityEngine.Random (メインスレッドセーフ) を用いる。
+    ///   この抽選は「どの/いつ 1回限りの演出イベントを開始するか」を決めるだけで、
+    ///   セーブに永続化されリプレイ時に再現される必要のある値ではないため、
+    ///   フレームベースのUnity RNGで問題ない(他の汚染深刻度ロールのような
+    ///   セーブ/リプレイ一致が必要なケースとは異なる)。
+    /// - OnAfterSimulationTick (シミュレーションスレッド) : InvasionManager.UpdateSimulation
+    ///   と 汚染ゾーンの維持/期限処理 のみを行う。GameObjectに触れる処理や
+    ///   StartInvasion/UpdateVisual/RedContaminationVisual.Sync の呼び出しは一切含まない。
+    /// </summary>
+    public class InvasionThreadingExtension : ThreadingExtensionBase
+    {
+        private int _pollutionTickCounter;
+        private const int PollutionProcessInterval = 16;
+
+        // ランダム発動チェックの実時間間隔(秒)。
+        // ModConfig.RandomCheckIntervalTicks はブリーフ上「シミュレーションtick数」の目安値だが、
+        // OnUpdate にはtickインデックスが無いため、簡易な変換として
+        // 「RandomCheckIntervalTicks / 100 秒ごとに1回チェックする」という実時間換算で扱う。
+        // 正確なタイミングは重要ではなく、周期的にメインスレッド上でチェックされることのみが目的。
+        private const float RandomCheckIntervalSeconds = ModConfig.RandomCheckIntervalTicks / 100f;
+        private float _randomCheckTimer;
+
+        public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
+        {
+            try
+            {
+                if (Input.GetKeyDown(ModConfig.ManualTriggerKey) && !InvasionManager.IsActive)
+                {
+                    Vector3 target = PickManualTargetPosition();
+                    InvasionManager.StartInvasion(target);
+                }
+
+                MaybeRollRandomInvasion(realTimeDelta);
+
+                InvasionManager.UpdateVisual(realTimeDelta);
+                RedContaminationVisual.Sync(ContaminationManager.Zones);
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("OnUpdate error: " + e);
+            }
+        }
+
+        public override void OnAfterSimulationTick()
+        {
+            try
+            {
+                InvasionManager.UpdateSimulation();
+                ProcessContaminationZones();
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("OnAfterSimulationTick error: " + e);
+            }
+        }
+
+        private static Vector3 PickManualTargetPosition()
+        {
+            // カメラ中心の地表位置を狙う簡易実装
+            Vector3 camPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+            return new Vector3(camPos.x, 0f, camPos.z);
+        }
+
+        /// <summary>
+        /// メインスレッド専用のランダム発動抽選。UnityEngine.Random (メインスレッドセーフ)のみを使用し、
+        /// SimulationManager.instance.m_randomizer (シミュレーションスレッド用RNG)には触れない。
+        /// </summary>
+        private void MaybeRollRandomInvasion(float realTimeDelta)
+        {
+            if (InvasionManager.IsActive) return;
+
+            _randomCheckTimer += realTimeDelta;
+            if (_randomCheckTimer < RandomCheckIntervalSeconds) return;
+            _randomCheckTimer = 0f;
+
+            int roll = Mathf.FloorToInt(Random.Range(0f, 10000f));
+            if (roll >= ModConfig.RandomChancePer10000) return;
+
+            const float half = 8500f; // マップ範囲の目安
+            float x = Random.Range(-half, half);
+            float z = Random.Range(-half, half);
+            InvasionManager.StartInvasion(new Vector3(x, 0f, z));
+            ModConfig.Log("Random invasion triggered at (" + x + ", " + z + ")");
+        }
+
+        /// <summary>
+        /// シミュレーションスレッド専用。ContaminationManager/PollutionField は
+        /// NaturalResourceManager の素の構造体配列のみを触るため、ここでの呼び出しは安全。
+        /// GameObjectに触れる処理(RedContaminationVisual等)はここに置かないこと。
+        /// </summary>
+        private void ProcessContaminationZones()
+        {
+            if (++_pollutionTickCounter < PollutionProcessInterval) return;
+            _pollutionTickCounter = 0;
+
+            List<ContaminationZone> zones = ContaminationManager.Zones;
+            if (zones.Count == 0) return;
+
+            long nowTicks = SimulationManager.instance.m_currentGameTime.Ticks;
+            for (int i = zones.Count - 1; i >= 0; i--)
+            {
+                ContaminationZone zone = zones[i];
+                if (ExpiryClock.HasExpired(zone.StartTicks, nowTicks, ModConfig.ExpiryYears))
+                {
+                    ContaminationManager.ClearZone(zone);
+                    ContaminationManager.RemoveZoneAt(i);
+                    ModConfig.Log("contamination zone expired (" + ModConfig.ExpiryYears + "y) and cleared");
+                    continue;
+                }
+                ContaminationManager.ReassertZone(zone);
+            }
+        }
+    }
+}
