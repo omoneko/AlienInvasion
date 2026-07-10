@@ -12,12 +12,12 @@ Cities: Skylines（初代）のコードModをWorkshopに公開するための�
 
 ## 2. プレビュー画像（サムネイル）
 
-- **採用:** [`preview.png`](preview.png) — 原発Mod（NuclearMeltdown）のプレビューに合わせて自作したカバー画像（1024×1024）。
-  - ヒーロー: 夜に赤く光るトライポッド（`screenshot-2-night-tripod.png` ベース）
-  - タイトル「ALIEN / INVASION」＋UFOアイコン＋黄黒のハザード帯
-  - 下部にラベル付きサムネ列（1 UFO / 2 TRIPODS / 3 LASERS / 4 NIGHT）
-  - 同作者の原発Modと同じ構成・トーンでシリーズ感を出しています。
-- **再生成:** [`make_preview.py`](make_preview.py)（Pillow使用）。ヒーロー画像・タイトル色・ラベルを変えて作り直せます。
+- **採用:** [`preview.png`](preview.png) — 原発Mod（NuclearMeltdown）のプレビューに合わせて自作したカバー画像（1024×1024・2パネル構成）。
+  - 上: UFO母船の俯瞰（[`cover-ufo.png`](cover-ufo.png) ベース）＋タイトル「ALIEN / INVASION」＋UFOアイコン
+  - 中: 黄黒のハザード帯
+  - 下: 3体トライポッドの市街地襲撃（[`cover-tripods.png`](cover-tripods.png) ベース）＋「TRIPOD ASSAULT」ラベル
+  - 同作者の原発Modと同じトーンでシリーズ感を出しています。
+- **再生成:** [`make_preview.py`](make_preview.py)（Pillow使用）。上下の画像・タイトル色・ラベルを変えて作り直せます。
   実行: `python docs/workshop/make_preview.py`
 - Steam のプレビューは小さめ＆一部で正方形にクロップされます。本画像は正方形なので問題ありません。
 
