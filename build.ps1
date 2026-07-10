@@ -40,4 +40,14 @@ if (Test-Path $soundsSrcDir) {
 } else {
     Write-Host "警告: $soundsSrcDir が見つかりません。効果音は再生されません。"
 }
+
+# Workshop用プレビュー画像。Mod共有時にCSはMODフォルダ直下の PreviewImage.png を使う。
+# 無いと既定のプレースホルダ(青写真)のままになり画像を変更できないため、毎回配置する。
+$previewSrc = "docs\workshop\PreviewImage.png"
+if (Test-Path $previewSrc) {
+    Copy-Item $previewSrc (Join-Path $modDir "PreviewImage.png") -Force
+    Write-Host "PreviewImage.png を配置しました"
+} else {
+    Write-Host "警告: $previewSrc が見つかりません。Workshopプレビューはプレースホルダのままになります。"
+}
 Write-Host "配置完了: $modDir"
