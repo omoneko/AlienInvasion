@@ -28,7 +28,7 @@ namespace AlienInvasion.Game
         public const float BombardSeconds = 10f;
         public const float StrikeIntervalSeconds = 0.6f;
         public const float AscendSeconds = 5f;
-        public const float MothershipSpinDegPerSec = 20f;  // 母船の水平回転速度(度/秒)
+        public const float MothershipSpinDegPerSec = 60f;  // 母船の水平回転速度(度/秒)。速いほど明確に回る
         public const float MothershipScale = 1f;           // prefab 生成時のスケール(実機で調整)
 
         // --- 陥没穴(シンクホール)/破壊 ---
@@ -52,13 +52,22 @@ namespace AlienInvasion.Game
         public const float TripodScale = 1f;
         public const float TripodSpawnScatter = 40f;         // クレーター中心からの初期散布半径
         public const float TripodMapHalfExtent = 8500f;      // 移動境界(マップ半径目安。既存ランダム発動と同値)
+        // 進行方向への向き: LookRotation(heading) でモデルの前方(=Blenderの-Y側)を進行方向へ向ける。
+        // モデル前方がUnityのどのローカル軸かに応じた微調整用のヨー(度)。実機で向きがズレたらここを調整。
+        public const float TripodYawOffsetDeg = 0f;
+        // 浮遊感の上下動(見た目のみ。ロジック上のPositionは地表のまま)。
+        public const float TripodBobAmplitude = 2.5f;        // 上下動の振幅(m)
+        public const float TripodBobFreqHz = 1.1f;           // 上下動の周波数(Hz)
 
         // --- トライポッド(レーザー破壊・軌跡汚染) ---
-        public const float BeamIntervalSeconds = 1.5f;             // ビーム発射(=局所破壊)の間隔
-        public const float BeamDestroyRadius = 25f;                // 1回のビームで破壊する半径(局所)
+        public const float BeamIntervalSeconds = 1.5f;             // ビーム発射(=着弾破壊)の間隔
+        public const float BeamDestroyRadius = 25f;                // 1回のビーム着弾で破壊する半径(局所)
         public const float TripodTrailContamRadius = 30f;          // 軌跡に残す汚染半径
         public const float TripodTrailContamIntervalSeconds = 3f;  // 軌跡汚染をスタンプする間隔
-        public const float BeamSkyOffset = 60f;                    // ビーム描画の上端(トライポッド頭上の高さ)
+        public const float TripodHeadHeight = 60f;                 // ビーム発射源(頭)の高さ(接地点からの相対)
+        public const float BeamMinAngleDeg = 20f;                  // ビームの俯角の最小(水平からの下向き角)
+        public const float BeamMaxAngleDeg = 60f;                  // ビームの俯角の最大
+        public const float BeamMaxRange = 180f;                    // ビーム着弾までの水平距離の上限
 
         // --- 汚染(赤) ---
         public const int ExpiryMonths = 2;              // 汚染が消滅するまでのゲーム内時間(月)

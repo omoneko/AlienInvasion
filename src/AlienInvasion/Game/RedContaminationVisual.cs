@@ -59,7 +59,10 @@ namespace AlienInvasion.Game
 
             float y = Singleton<TerrainManager>.instance.SampleDetailHeight(new Vector3(zone.CenterX, 0f, zone.CenterZ));
             instance.transform.position = new Vector3(zone.CenterX, y + ModConfig.RedDecalYOffset, zone.CenterZ);
-            instance.transform.localScale = new Vector3(zone.Radius * 2f, 1f, zone.Radius * 2f);
+            // デカールは Euler(90,0,0) で地面(XZ平面)に寝ている。回転後は local X→world X, local Y→world Z。
+            // よって面的に地面を覆うには (直径, 直径, 厚み) = (Radius*2, Radius*2, 1) とする。
+            // 以前は (Radius*2, 1, Radius*2) で local Y=world Z が 1m のままとなり「細い赤い棒」になっていた。
+            instance.transform.localScale = new Vector3(zone.Radius * 2f, zone.Radius * 2f, 1f);
             return instance;
         }
 

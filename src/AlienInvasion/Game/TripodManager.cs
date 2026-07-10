@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AlienInvasion.Core;
 using UnityEngine;
 
@@ -32,8 +33,12 @@ namespace AlienInvasion.Game
         // 同じ割り切りで、正確な実時間一致より「周期的に発火すること」を優先する設計判断。
         // ビーム間隔の厳密なバランス調整は実機で行う(計画書スコープ外)。
         private const float ApproxSimTicksPerSecond = 15f;
-        private static int _beamDestroyTickCounter;
         private static int _trailTickCounter;
+
+        // ビーム着弾点の破壊要求キュー。メインスレッド(FireBeam時)が積み、simスレッド(UpdateSimulation)が
+        // 消化して DisasterHelpers.DestroyStuff を呼ぶ。両スレッドから触るためロックで保護する。
+        private static readonly List<Vector3> _destroyQueue = new List<Vector3>();
+        private static readonly object _queueLock = new object();
 
         public static bool IsFinished
         {
@@ -57,8 +62,8 @@ namespace AlienInvasion.Game
                 _activeElapsed = 0f;
                 _turnTimer = 0f;
                 _beamTimer = 0f;
-                _beamDestroyTickCounter = 0;
                 _trailTickCounter = 0;
+                lock (_queueLock) { _destroyQueue.Clear(); }
                 ModConfig.Log("Tripods spawned near " + craterCenter);
             }
             catch (System.Exception e)
@@ -97,8 +102,10 @@ namespace AlienInvasion.Game
                     for (int i = 0; i < _tripods.Length; i++)
                     {
                         if (_tripods[i] == null) continue;
-                        Vector3 pos = _tripods[i].Position;
-                        Effects.PlayBeam(pos, pos + Vector3.up * ModConfig.BeamSkyOffset);
+                        // 進行方向斜め下へ発射(ビーム描画+着弾爆発はメインスレッド)。
+                        // 着弾点を破壊キューへ積み、simスレッドで建物破壊する。
+                        Vector3 impact = _tripods[i].FireBeam();
+                        EnqueueDestroy(impact);
                     }
                 }
 
@@ -120,18 +127,12 @@ namespace AlienInvasion.Game
         {
             try
             {
+                // 1) ビーム着弾点の破壊要求を消化(メインスレッドが積んだもの)。
+                DrainDestroyQueue();
+
+                // 2) 軌跡汚染: トライポッド現在地(接地点)に一定間隔で赤い汚染を残す。
                 Vector3[] positions = SnapshotPositions();
                 if (positions.Length == 0) return;
-
-                _beamDestroyTickCounter++;
-                if (_beamDestroyTickCounter >= ToApproxTicks(ModConfig.BeamIntervalSeconds))
-                {
-                    _beamDestroyTickCounter = 0;
-                    for (int i = 0; i < positions.Length; i++)
-                    {
-                        DestroyAt(positions[i]);
-                    }
-                }
 
                 _trailTickCounter++;
                 if (_trailTickCounter >= ToApproxTicks(ModConfig.TripodTrailContamIntervalSeconds))
@@ -148,6 +149,31 @@ namespace AlienInvasion.Game
             catch (System.Exception e)
             {
                 ModConfig.LogError("TripodManager.UpdateSimulation error: " + e);
+            }
+        }
+
+        /// <summary>メインスレッドが積んだ着弾点の破壊要求をロック下で取り出し、建物を破壊する。simスレッド専用。</summary>
+        private static void DrainDestroyQueue()
+        {
+            Vector3[] impacts;
+            lock (_queueLock)
+            {
+                if (_destroyQueue.Count == 0) return;
+                impacts = _destroyQueue.ToArray();
+                _destroyQueue.Clear();
+            }
+            for (int i = 0; i < impacts.Length; i++)
+            {
+                DestroyAt(impacts[i]);
+            }
+        }
+
+        /// <summary>着弾点を破壊要求キューへ積む。メインスレッド(FireBeam直後)から呼ぶ。</summary>
+        private static void EnqueueDestroy(Vector3 impact)
+        {
+            lock (_queueLock)
+            {
+                _destroyQueue.Add(impact);
             }
         }
 
@@ -198,8 +224,8 @@ namespace AlienInvasion.Game
                 _activeElapsed = 0f;
                 _turnTimer = 0f;
                 _beamTimer = 0f;
-                _beamDestroyTickCounter = 0;
                 _trailTickCounter = 0;
+                lock (_queueLock) { _destroyQueue.Clear(); }
             }
             catch (System.Exception e)
             {

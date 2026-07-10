@@ -105,6 +105,19 @@ namespace AlienInvasion.Game
             Object.Destroy(go, BeamLifetime);
         }
 
+        /// <summary>着弾点で爆発(隕石着弾エフェクト)を再生する。メインスレッド専用。</summary>
+        public static void PlayExplosion(Vector3 position)
+        {
+            try
+            {
+                PlayImpactBurst(position);
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("PlayExplosion error: " + e);
+            }
+        }
+
         private static void PlayImpactBurst(Vector3 position)
         {
             EffectInfo effect = ResolveMeteorImpactEffect();
