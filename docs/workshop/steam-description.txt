@@ -1,0 +1,38 @@
+[h1]Alien Invasion — War of the Worlds[/h1]
+[i]No one would have believed, in the last years of the human age, that this city was being watched from the timeless worlds of space...[/i]
+
+They came from the sky. A UFO mothership descends over your city, blasts it with lightning, and carves a smoking crater into the ground. Then the tripods come — striding across the land, firing heat-rays, and leaving a creeping red weed in their wake.
+
+[h1]What it does[/h1]
+[list]
+[*] [b]Summon a UFO anywhere[/b] with the [b]"UFO!"[/b] button (in the Disasters panel) or the [b]F7[/b] key.
+[*] The mothership [b]descends and bombards the ground with lightning[/b], then blows a disaster-scale [b]sinkhole crater[/b] and wrecks everything nearby.
+[*] [b]Three tripods[/b] deploy from every UFO and [b]roam the land on their own[/b], firing [b]heat-ray beams[/b] that level buildings.
+[*] A spreading [b]red "red weed" contamination[/b] is left behind, then fades over time.
+[*] [b]Up to 5 invasions at once[/b] — stack them for total chaos.
+[/list]
+
+[h1]Details[/h1]
+[list]
+[*] Tripods stay for [b]14 in-game days[/b], then the mothership finally departs.
+[*] Everything is [b]tied to game speed[/b] — the invasion runs faster at 2x / 3x, and [b]freezes when you pause[/b].
+[*] The alien machines [b]glow at night[/b] (needs the day/night cycle).
+[*] Custom [b]sound effects[/b] for the UFO's arrival and the tripods on the move.
+[*] Invasions can also strike [b]at random[/b] on their own.
+[/list]
+
+[h1]How to use[/h1]
+[list]
+[*] Open the [b]Disasters[/b] panel and click [b]"UFO!"[/b] (or press [b]F7[/b]).
+[*] Click a spot on the map to summon the mothership there.
+[*] Repeat to launch [b]up to 5[/b] invasions at the same time.
+[/list]
+
+[h1]Notes[/h1]
+[list]
+[*] The [b]"UFO!" button lives in the Natural Disasters DLC panel[/b]. Without that DLC, a fallback button appears in the top-left corner of the screen.
+[*] [b]Night glow[/b] needs the day/night cycle (After Dark) and only shows after dark.
+[*] This mod [b]destroys buildings and terrain[/b] — try it on a city you don't mind scarring, or keep a backup save.
+[/list]
+
+Welcome your new overlords. Have fun out there. 🛸
