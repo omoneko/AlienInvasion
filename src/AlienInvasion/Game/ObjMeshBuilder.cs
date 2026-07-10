@@ -113,6 +113,13 @@ namespace AlienInvasion.Game
                 {
                     ApplyTransparency(mat, a);
                 }
+
+                // ベース(メタリックグレー)以外の色付きマテリアルは、夜間に自身の色で発光させる対象として登録する。
+                bool isBase = string.IsNullOrEmpty(materialName) || materialName == ModConfig.BaseMaterialName;
+                if (!isBase)
+                {
+                    EmissionController.Register(mat, new Color(r, g, b, 1f));
+                }
             }
             catch (Exception e)
             {

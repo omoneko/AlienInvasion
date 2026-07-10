@@ -205,6 +205,21 @@ namespace AlienInvasion.Game
             return result;
         }
 
+        /// <summary>生存している先頭トライポッドの位置を返す(移動音の発生源に使う)。1体もいなければ false。</summary>
+        public bool TryGetAnyPosition(out Vector3 pos)
+        {
+            Tripod[] tripods = _tripods;
+            if (tripods != null)
+            {
+                for (int i = 0; i < tripods.Length; i++)
+                {
+                    if (tripods[i] != null) { pos = tripods[i].Position; return true; }
+                }
+            }
+            pos = default(Vector3);
+            return false;
+        }
+
         /// <summary>全トライポッドを破棄する。メインスレッド専用。</summary>
         public void DespawnAll()
         {

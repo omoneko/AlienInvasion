@@ -81,6 +81,21 @@ namespace AlienInvasion.Game
             }
         }
 
+        /// <summary>
+        /// いずれかの襲来でトライポッドが活動中なら、その代表位置を返す(移動音の発生源用)。
+        /// メインスレッド専用(スロットと各 Invasion/TripodGroup の状態を読むため)。
+        /// </summary>
+        public static bool TryGetAnyTripodPosition(out Vector3 pos)
+        {
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                Invasion inv = _slots[i];
+                if (inv != null && inv.TryGetTripodPosition(out pos)) return true;
+            }
+            pos = default(Vector3);
+            return false;
+        }
+
         /// <summary>シミュレーションスレッド専用。各スロットの破壊/汚染書込を進める。</summary>
         public static void UpdateSimulation()
         {

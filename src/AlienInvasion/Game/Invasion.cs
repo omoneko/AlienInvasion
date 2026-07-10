@@ -33,6 +33,7 @@ namespace AlienInvasion.Game
             _phaseElapsed = 0f;
             _strikeTimer = 0f;
             _bombardResolved = false;
+            SoundManager.PlayUfoArrival(target); // UFO飛来音
         }
 
         /// <summary>
@@ -95,6 +96,17 @@ namespace AlienInvasion.Game
             {
                 ModConfig.LogError("Invasion.UpdateSimulation error: " + e);
             }
+        }
+
+        /// <summary>この襲来がトライポッド活動中なら、生存トライポッドの代表位置を返す。メインスレッド専用。</summary>
+        public bool TryGetTripodPosition(out Vector3 pos)
+        {
+            if (_state == InvasionState.TripodsActive)
+            {
+                return _tripods.TryGetAnyPosition(out pos);
+            }
+            pos = default(Vector3);
+            return false;
         }
 
         /// <summary>レベル再読込等での強制破棄。メインスレッド専用。</summary>

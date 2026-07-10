@@ -1,5 +1,3 @@
-using ColossalFramework;
-using ColossalFramework.Globalization;
 using ColossalFramework.UI;
 using UnityEngine;
 
@@ -136,35 +134,16 @@ namespace AlienInvasion.Game.UI
 
         private static void StyleButton(UIButton button)
         {
-            bool ja = IsJapanese();
+            // 言語に依存しない固定表記(ローカライズの取りこぼしを避けるため)。
             button.name = ButtonName;
-            button.text = ja ? "UFO召喚" : "Summon UFO";
+            button.text = "UFO !";
             button.textScale = 0.85f;
             button.size = new Vector2(ModConfig.SummonButtonWidth, ModConfig.SummonButtonHeight);
             button.normalBgSprite = "ButtonMenu";
             button.hoveredBgSprite = "ButtonMenuHovered";
             button.pressedBgSprite = "ButtonMenuPressed";
-            button.tooltip = ja
-                ? "UFO母船を召喚する地点を選択します"
-                : "Select a location to summon the UFO mothership";
+            button.tooltip = "Select a location to summon the UFO mothership";
             button.eventClick += OnButtonClick;
-        }
-
-        /// <summary>現在のゲーム言語が日本語か。取得できない場合は英語(false)を既定とする。</summary>
-        private static bool IsJapanese()
-        {
-            try
-            {
-                if (SingletonLite<LocaleManager>.exists)
-                {
-                    return SingletonLite<LocaleManager>.instance.language == "ja";
-                }
-            }
-            catch (System.Exception e)
-            {
-                ModConfig.LogError("InvasionUI.IsJapanese error: " + e);
-            }
-            return false;
         }
 
         public static void DestroyButton()

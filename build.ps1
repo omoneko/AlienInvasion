@@ -30,4 +30,14 @@ if (Test-Path $modelsSrcDir) {
 } else {
     Write-Host "警告: $modelsSrcDir が見つかりません。AssetBundle無しの場合モデルは表示されません。"
 }
+
+$soundsDir = Join-Path $modDir "Sounds"
+New-Item -ItemType Directory -Force -Path $soundsDir | Out-Null
+$soundsSrcDir = "src\AlienInvasion\Sounds"
+if (Test-Path $soundsSrcDir) {
+    Copy-Item (Join-Path $soundsSrcDir "*") $soundsDir -Force
+    Write-Host "効果音(wav)を配置しました"
+} else {
+    Write-Host "警告: $soundsSrcDir が見つかりません。効果音は再生されません。"
+}
 Write-Host "配置完了: $modDir"

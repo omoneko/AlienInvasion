@@ -19,6 +19,13 @@ namespace AlienInvasion.Game
         public const float ObjMetallic = 0.7f;     // Standardシェーダの金属質パラメータ
         public const float ObjGlossiness = 0.6f;   // Standardシェーダの滑らかさパラメータ
         public static readonly Color ObjFallbackColor = new Color(0.2f, 0.2f, 0.2f, 1f); // MTLに無い場合の既定色(金属グレー)
+
+        // --- 夜間発光 ---
+        // この名前のマテリアル(ベースのメタリックグレー)は発光させない。それ以外の色付きマテリアルを
+        // 夜間に自身の色で発光させる。MTLの newmtl 名と一致させること。
+        public const string BaseMaterialName = "MetallicGray";
+        public const float NightEmissionIntensity = 2.2f;  // 夜間の発光強度(1超でブルームが乗りやすい)
+        public const float EmissionFadePerSecond = 1.5f;   // 昼夜切替時の発光フェード速度(0..1/秒)
         // 汚染デカールのハイライト色(クリムゾン〜オレンジ赤)。アルファは中心のピーク不透明度
         // (外周へ放射状にフェード)。レッドウィード風テクスチャの濃い部分の色に使う。
         public static readonly Color RedDecalColor = new Color(1f, 0.22f, 0.05f, 0.5f);
@@ -88,6 +95,18 @@ namespace AlienInvasion.Game
         public const float ContaminationRadius = 90f;   // 陥没穴跡の汚染半径
         public const byte MaxPollution = 255;
         public const float RedDecalYOffset = 0.3f;
+
+        // --- 効果音(WAV。Mod配置フォルダ直下の Sounds サブフォルダに置く) ---
+        // 元はmp3だが、CSのUnity 5.6は実行時にmp3をデコードできない(WWWのAudioType.MPEGがnullを返す)。
+        // そのためBlenderのaudモジュールでWAV(PCM)へ変換したものを読み込む。
+        public const string SoundsFolderName = "Sounds";
+        public const string UfoSoundFile = "UFOSound.wav";       // UFO飛来時(襲来開始)に1回
+        public const string TripodSoundFile = "TriPodSound.wav"; // トライポッド移動中、一定間隔で
+        public const float UfoSoundVolume = 1f;
+        public const float TripodSoundVolume = 0.9f;
+        // トライポッド移動音の間隔(秒)。単一の常設AudioSourceで再生するため重ならない
+        // (前の再生が終わるまで次は鳴らない)。ゲーム一時停止中は再生も一時停止する。
+        public const float TripodStepIntervalSeconds = 10f;
 
         // --- 発動 ---
         public const int MaxConcurrentInvasions = 5;   // 同時に進行できる襲来(UFO)の上限

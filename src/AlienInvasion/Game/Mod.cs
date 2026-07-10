@@ -8,7 +8,7 @@ namespace AlienInvasion.Game
     public class Mod : IUserMod
     {
         public string Name => "Alien Invasion";
-        public string Description => "UFO母船が飛来し、雷とクレーターで街を破壊、放射能汚染を残します。手動発動キー: F7";
+        public string Description => "A UFO mothership descends, wrecks the city with lightning and a crater, then deploys roaming tripods that fire lasers and leave red contamination. Trigger it with the \"UFO !\" button or the F7 key (up to 5 at once).";
 
         public void OnEnabled()
         {
@@ -22,6 +22,7 @@ namespace AlienInvasion.Game
                 {
                     AssetLoader.Initialize(info.modPath);
                     ModelProvider.Initialize(info.modPath);
+                    SoundManager.Initialize(info.modPath);
                 }
                 else
                 {

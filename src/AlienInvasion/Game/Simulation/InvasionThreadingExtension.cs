@@ -88,6 +88,14 @@ namespace AlienInvasion.Game.Simulation
                 }
 
                 RedContaminationVisual.Sync(ContaminationManager.Zones);
+
+                // 夜間発光の更新(昼夜に応じてUFO/トライポッドの色付き部を発光。一時停止中も反映)。
+                EmissionController.Update(realTimeDelta);
+
+                // トライポッド移動音(単一ソース・重ねない・一時停止で停止)。一時停止中も停止処理のため毎フレーム呼ぶ。
+                Vector3 tripodPos;
+                bool hasTripod = InvasionManager.TryGetAnyTripodPosition(out tripodPos);
+                SoundManager.UpdateTripodAmbience(hasTripod, tripodPos, paused, realTimeDelta);
             }
             catch (System.Exception e)
             {
