@@ -57,20 +57,29 @@ namespace AlienInvasion.Game.Simulation
         {
             try
             {
+                // ゲームが一時停止中は襲来の進行(降下・回転・移動・上下動・ビーム)を凍結する。
+                // OnUpdate はレンダースレッドのため一時停止中も realTimeDelta が進み続けるが、
+                // それをそのまま使うと停止中でもUFO/トライポッドが動いてしまうため。
+                bool paused = SimulationManager.instance.SimulationPaused;
+
                 if (Input.GetKeyDown(ModConfig.ManualTriggerKey) && !InvasionManager.IsActive)
                 {
                     // Task 16: F7は即時発動ではなく、UIボタンと同じ配置ツール(狙って左クリックで確定)を
                     // 起動するだけに変更。実際の StartInvasion 呼び出しは
                     // MothershipPlacementTool.OnToolGUI (メインスレッド上のツールUIイベント)側で行う。
+                    // (配置は一時停止中でも可能。発動後の進行は解除まで凍結される。)
                     ToolsModifierControl.SetTool<AlienInvasion.Game.UI.MothershipPlacementTool>();
                 }
-
-                MaybeRollRandomInvasion(realTimeDelta);
 
                 // 災害パネルは遅延生成されることがあるため、取り付け完了まで毎フレーム試行する。
                 UI.InvasionUI.EnsureAttached();
 
-                InvasionManager.UpdateVisual(realTimeDelta);
+                if (!paused)
+                {
+                    MaybeRollRandomInvasion(realTimeDelta);
+                    InvasionManager.UpdateVisual(realTimeDelta);
+                }
+
                 RedContaminationVisual.Sync(ContaminationManager.Zones);
             }
             catch (System.Exception e)

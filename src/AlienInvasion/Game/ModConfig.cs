@@ -48,7 +48,7 @@ namespace AlienInvasion.Game
         // --- トライポッド(召喚・自由移動) ---
         public const int TripodCount = 3;
         public const float TripodSpeed = 30f;                // 水平移動速度(units/秒)
-        public const float TripodActiveSeconds = 40f;        // 出現から消滅までの活動時間
+        public const float TripodActiveSeconds = 60f;        // 出現から消滅までの活動時間(40->60, 1.5倍)
         public const float TripodTurnIntervalSeconds = 2.5f; // 方向転換の間隔
         public const float TripodTurnMaxDeg = 60f;           // 1回の方向転換の最大角(±)
         public const float TripodScale = 1f;
