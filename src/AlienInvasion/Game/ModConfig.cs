@@ -13,6 +13,14 @@ namespace AlienInvasion.Game
         public const string RedDecalPrefabName = "ContaminationDecal";
         public const string TripodPrefabName = "Tripod";
 
+        // --- OBJ実行時ロード(AssetBundleが使えない場合のフォールバック) ---
+        // Mod配置フォルダ直下の Models サブフォルダに <name>.obj / <name>.mtl を置く。
+        public const string ModelsFolderName = "Models";
+        public const float ObjMetallic = 0.7f;     // Standardシェーダの金属質パラメータ
+        public const float ObjGlossiness = 0.6f;   // Standardシェーダの滑らかさパラメータ
+        public static readonly Color ObjFallbackColor = new Color(0.2f, 0.2f, 0.2f, 1f); // MTLに無い場合の既定色(金属グレー)
+        public static readonly Color RedDecalColor = new Color(1f, 0.05f, 0.05f, 0.5f);  // 手続き生成する赤デカールの色
+
         // --- 母船の飛行 ---
         public const float MothershipStartAltitude = 800f;   // 出現高度(地表からの相対高さ)
         public const float MothershipHoverAltitude = 220f;   // 降下後のホバリング高度

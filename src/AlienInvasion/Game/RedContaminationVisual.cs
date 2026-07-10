@@ -54,11 +54,10 @@ namespace AlienInvasion.Game
 
         private static GameObject SpawnDecal(ContaminationZone zone)
         {
-            GameObject prefab = AssetLoader.GetPrefab(ModConfig.RedDecalPrefabName);
-            if (prefab == null) return null;
+            GameObject instance = ModelProvider.CreateInstance(ModConfig.RedDecalPrefabName);
+            if (instance == null) return null;
 
             float y = Singleton<TerrainManager>.instance.SampleDetailHeight(new Vector3(zone.CenterX, 0f, zone.CenterZ));
-            GameObject instance = Object.Instantiate(prefab);
             instance.transform.position = new Vector3(zone.CenterX, y + ModConfig.RedDecalYOffset, zone.CenterZ);
             instance.transform.localScale = new Vector3(zone.Radius * 2f, 1f, zone.Radius * 2f);
             return instance;

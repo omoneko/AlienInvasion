@@ -21,6 +21,7 @@ namespace AlienInvasion.Game
                 if (info != null && !string.IsNullOrEmpty(info.modPath))
                 {
                     AssetLoader.Initialize(info.modPath);
+                    ModelProvider.Initialize(info.modPath);
                 }
                 else
                 {

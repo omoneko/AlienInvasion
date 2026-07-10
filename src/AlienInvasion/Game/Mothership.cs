@@ -14,10 +14,10 @@ namespace AlienInvasion.Game
         {
             _targetGround = targetGround;
             Position = targetGround + new Vector3(0f, ModConfig.MothershipStartAltitude, 0f);
-            GameObject prefab = AssetLoader.GetPrefab(ModConfig.MothershipPrefabName);
-            if (prefab != null)
+            GameObject go = ModelProvider.CreateInstance(ModConfig.MothershipPrefabName);
+            if (go != null)
             {
-                _gameObject = Object.Instantiate(prefab);
+                _gameObject = go;
                 _gameObject.transform.position = Position;
                 _gameObject.transform.localScale = Vector3.one * ModConfig.MothershipScale;
             }

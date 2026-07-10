@@ -20,4 +20,14 @@ if (Test-Path $bundleSrc) {
 } else {
     Write-Host "警告: $bundleSrc が見つかりません。ビジュアル(母船/赤デカール)は起動時スキップされます。"
 }
+
+$modelsDir = Join-Path $modDir "Models"
+New-Item -ItemType Directory -Force -Path $modelsDir | Out-Null
+$modelsSrcDir = "src\AlienInvasion\Models"
+if (Test-Path $modelsSrcDir) {
+    Copy-Item (Join-Path $modelsSrcDir "*") $modelsDir -Force
+    Write-Host "OBJ/MTLモデルを配置しました"
+} else {
+    Write-Host "警告: $modelsSrcDir が見つかりません。AssetBundle無しの場合モデルは表示されません。"
+}
 Write-Host "配置完了: $modDir"

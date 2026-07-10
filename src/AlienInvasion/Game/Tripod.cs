@@ -28,10 +28,10 @@ namespace AlienInvasion.Game
 
             try
             {
-                GameObject prefab = AssetLoader.GetPrefab(ModConfig.TripodPrefabName);
-                if (prefab != null)
+                GameObject go = ModelProvider.CreateInstance(ModConfig.TripodPrefabName);
+                if (go != null)
                 {
-                    _gameObject = Object.Instantiate(prefab);
+                    _gameObject = go;
                     _gameObject.transform.position = Position;
                     _gameObject.transform.localScale = Vector3.one * ModConfig.TripodScale;
                 }
