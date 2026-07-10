@@ -181,13 +181,19 @@ namespace AlienInvasion.Game
 
                 Material mat = new Material(shader);
                 Color c = ModConfig.RedDecalColor;
-                mat.color = c;
-                if (mat.HasProperty("_Color")) mat.SetColor("_Color", c);
 
-                if (c.a < 1f)
-                {
-                    ObjMeshBuilder.ApplyTransparency(mat, c.a);
-                }
+                // 中心が濃く外周へ透明にフェードする放射状テクスチャで、境界のぼやけた
+                // ソフトな円形の汚染パッチにする(ハードな四角の単色を避ける)。
+                Texture2D tex = BuildRadialTexture(c, 128);
+                mat.mainTexture = tex;
+                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+
+                // 透明度はテクスチャのアルファで表現するので、色ティントは白(不透明)にする。
+                Color white = Color.white;
+                mat.color = white;
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", white);
+
+                ObjMeshBuilder.ApplyTransparency(mat, 1f);
 
                 _decalMaterial = mat;
                 return _decalMaterial;
@@ -197,6 +203,32 @@ namespace AlienInvasion.Game
                 ModConfig.LogError("ModelProvider.GetDecalMaterial error: " + e);
                 return null;
             }
+        }
+
+        /// <summary>
+        /// 中心が濃く外周へ向かってアルファが0にフェードする放射状テクスチャを生成する。
+        /// RGBは color の色、アルファは中心で color.a・円の外周(および四隅)で0。
+        /// これで四角い単色タイルではなく、境界のぼやけたソフトな円形の汚染パッチになる。
+        /// </summary>
+        private static Texture2D BuildRadialTexture(Color color, int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
+            tex.wrapMode = TextureWrapMode.Clamp;
+            float half = (size - 1) * 0.5f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = (x - half) / half;
+                    float dy = (y - half) / half;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy); // 中心0, 内接円の外周で1
+                    float t = Mathf.Clamp01(1f - d);
+                    float a = t * t * color.a;               // 二次カーブで外周ほど柔らかくフェード
+                    tex.SetPixel(x, y, new Color(color.r, color.g, color.b, a));
+                }
+            }
+            tex.Apply();
+            return tex;
         }
     }
 }

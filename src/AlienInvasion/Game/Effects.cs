@@ -120,12 +120,30 @@ namespace AlienInvasion.Game
 
         private static void PlayImpactBurst(Vector3 position)
         {
-            EffectInfo effect = ResolveMeteorImpactEffect();
+            EffectInfo effect = ResolveImpactEffect();
             if (effect == null) return;
             var spawnArea = new EffectInfo.SpawnArea(position, Vector3.up, 0f);
             Singleton<EffectManager>.instance.DispatchEffect(
                 effect, default(InstanceID), spawnArea, Vector3.zero, 0f, ModConfig.ImpactEffectMagnitude,
                 Singleton<VehicleManager>.instance.m_audioGroup);
+        }
+
+        /// <summary>
+        /// 着弾爆発に使うエフェクトを解決する。既定はゲーム標準の中規模爆発(DisasterProperties.m_mediumExplosion。
+        /// 隕石着弾より遥かに小さく着弾向き)。取得できない場合は隕石着弾エフェクトへフォールバック。
+        /// </summary>
+        private static EffectInfo ResolveImpactEffect()
+        {
+            try
+            {
+                DisasterProperties dp = Singleton<DisasterManager>.instance.m_properties;
+                if (dp != null && dp.m_mediumExplosion != null) return dp.m_mediumExplosion;
+            }
+            catch (System.Exception)
+            {
+                // フォールバックへ
+            }
+            return ResolveMeteorImpactEffect();
         }
 
         private static EffectInfo ResolveMeteorImpactEffect()

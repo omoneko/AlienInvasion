@@ -19,7 +19,8 @@ namespace AlienInvasion.Game
         public const float ObjMetallic = 0.7f;     // Standardシェーダの金属質パラメータ
         public const float ObjGlossiness = 0.6f;   // Standardシェーダの滑らかさパラメータ
         public static readonly Color ObjFallbackColor = new Color(0.2f, 0.2f, 0.2f, 1f); // MTLに無い場合の既定色(金属グレー)
-        public static readonly Color RedDecalColor = new Color(1f, 0.05f, 0.05f, 0.5f);  // 手続き生成する赤デカールの色
+        // 汚染デカールの色。オレンジがかった赤。アルファは中心のピーク不透明度(外周へ放射状にフェード)。
+        public static readonly Color RedDecalColor = new Color(1f, 0.28f, 0.06f, 0.4f);
 
         // --- 母船の飛行 ---
         public const float MothershipStartAltitude = 800f;   // 出現高度(地表からの相対高さ)
@@ -70,9 +71,8 @@ namespace AlienInvasion.Game
         public const float BeamMaxRange = 180f;                    // ビーム着弾までの水平距離の上限
 
         // --- 着弾爆発エフェクト(UFOの雷着弾・トライポッドのレーザー着弾で共用) ---
-        // 隕石着弾エフェクトを流用しているが本来は巨大隕石用で大きすぎるため、magnitudeを下げて縮小する。
-        // DispatchEffect の magnitude はエフェクトの強度/スケールを決める。実機で見て調整可。
-        public const float ImpactEffectMagnitude = 0.12f;
+        // 既定はゲーム標準の中規模爆発(m_mediumExplosion)。magnitudeで強度/スケールを調整可。
+        public const float ImpactEffectMagnitude = 0.7f;
 
         // --- 汚染(赤) ---
         public const int ExpiryMonths = 2;              // 汚染が消滅するまでのゲーム内時間(月)
