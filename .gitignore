@@ -3,3 +3,12 @@ obj/
 *.user
 .vs/
 .superpowers/
+
+# Unity project build artifacts (bundle path is optional; not tracked)
+unity-project/Library/
+unity-project/Temp/
+unity-project/Obj/
+unity-project/AssetBundles/
+unity-project/**/*.meta
+# retired empty unity projects (moved out of unity-project to fix nesting)
+_unused-empty-unity-projects/
