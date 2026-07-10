@@ -2,7 +2,9 @@ namespace AlienInvasion.Core
 {
     /// <summary>
     /// 1回の襲来イベントの進行状態。
-    /// Idle→Descending→Bombarding→Ascending→TripodDeploy→TripodsActive→Done→Idle の一方向循環。
+    /// Idle→Descending→Bombarding→Ascending→TripodDeploy→TripodsActive→Departing→Done→Idle の一方向循環。
+    /// Ascending は爆撃後に滞留高度へ上昇するフェーズ(母船は消えずに上空で滞留する)。
+    /// Departing はトライポッド消滅後に母船が出現高度まで上昇して離脱・消滅するフェーズ。
     /// </summary>
     public enum InvasionState
     {
@@ -12,6 +14,7 @@ namespace AlienInvasion.Core
         Ascending,
         TripodDeploy,
         TripodsActive,
+        Departing,
         Done
     }
 
@@ -32,7 +35,8 @@ namespace AlienInvasion.Core
                 case InvasionState.Bombarding: return InvasionState.Ascending;
                 case InvasionState.Ascending: return InvasionState.TripodDeploy;
                 case InvasionState.TripodDeploy: return InvasionState.TripodsActive;
-                case InvasionState.TripodsActive: return InvasionState.Done;
+                case InvasionState.TripodsActive: return InvasionState.Departing;
+                case InvasionState.Departing: return InvasionState.Done;
                 case InvasionState.Done: return InvasionState.Idle;
                 default: return InvasionState.Idle;
             }

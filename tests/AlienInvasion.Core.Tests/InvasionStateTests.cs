@@ -9,13 +9,15 @@ public class InvasionStateTests
     [InlineData(InvasionState.Bombarding, InvasionState.Ascending, true)]
     [InlineData(InvasionState.Ascending, InvasionState.TripodDeploy, true)]
     [InlineData(InvasionState.TripodDeploy, InvasionState.TripodsActive, true)]
-    [InlineData(InvasionState.TripodsActive, InvasionState.Done, true)]
+    [InlineData(InvasionState.TripodsActive, InvasionState.Departing, true)]
+    [InlineData(InvasionState.Departing, InvasionState.Done, true)]
     [InlineData(InvasionState.Done, InvasionState.Idle, true)]
     [InlineData(InvasionState.Idle, InvasionState.Bombarding, false)]
     [InlineData(InvasionState.Descending, InvasionState.Idle, false)]
     [InlineData(InvasionState.Bombarding, InvasionState.Done, false)]
     [InlineData(InvasionState.Ascending, InvasionState.Done, false)]
     [InlineData(InvasionState.TripodDeploy, InvasionState.Done, false)]
+    [InlineData(InvasionState.TripodsActive, InvasionState.Done, false)]
     public void CanTransition_follows_linear_cycle(InvasionState from, InvasionState to, bool expected)
     {
         Assert.Equal(expected, InvasionStateMachine.CanTransition(from, to));
@@ -27,7 +29,8 @@ public class InvasionStateTests
     [InlineData(InvasionState.Bombarding, InvasionState.Ascending)]
     [InlineData(InvasionState.Ascending, InvasionState.TripodDeploy)]
     [InlineData(InvasionState.TripodDeploy, InvasionState.TripodsActive)]
-    [InlineData(InvasionState.TripodsActive, InvasionState.Done)]
+    [InlineData(InvasionState.TripodsActive, InvasionState.Departing)]
+    [InlineData(InvasionState.Departing, InvasionState.Done)]
     [InlineData(InvasionState.Done, InvasionState.Idle)]
     public void Next_returns_the_following_state(InvasionState current, InvasionState expected)
     {
@@ -40,7 +43,7 @@ public class InvasionStateTests
         InvasionState state = InvasionState.Idle;
         var visited = new System.Collections.Generic.List<InvasionState> { state };
 
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < 8; i++)
         {
             state = InvasionStateMachine.Next(state);
             visited.Add(state);
@@ -54,6 +57,7 @@ public class InvasionStateTests
             InvasionState.Ascending,
             InvasionState.TripodDeploy,
             InvasionState.TripodsActive,
+            InvasionState.Departing,
             InvasionState.Done,
             InvasionState.Idle
         }, visited);

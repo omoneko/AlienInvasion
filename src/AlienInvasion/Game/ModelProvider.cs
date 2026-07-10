@@ -174,10 +174,20 @@ namespace AlienInvasion.Game
 
             try
             {
-                Shader shader = Shader.Find("Standard");
+                RenderAssets.DumpAvailableShadersOnce();
+                // 透過(テクスチャのアルファで隙間を作る有機的なレッドウィード)を確実に出すため、
+                // アルファブレンドが素直に効くシェーダーを優先する。Standardの透過はCSランタイムでは
+                // キーワード除去により効かず「べた塗りの赤い矩形」になりがちなので後回しにする。
+                Shader shader = RenderAssets.FindFirst(
+                    "Unlit/Transparent", "Sprites/Default", "Particles/Alpha Blended",
+                    "Legacy Shaders/Transparent/Diffuse", "Transparent/Diffuse");
+                bool transparentCapable = shader != null;
+                if (shader == null) shader = RenderAssets.FindLoadedContaining("transparent", "sprite", "unlit");
+                if (shader == null) shader = Shader.Find("Standard");
                 if (shader == null) shader = Shader.Find("Legacy Shaders/Diffuse");
                 if (shader == null) shader = Shader.Find("Diffuse");
                 if (shader == null) return null;
+                ModConfig.Log("Decal shader = " + shader.name + " (transparent-capable=" + transparentCapable + ")");
 
                 Material mat = new Material(shader);
                 Color c = ModConfig.RedDecalColor;
@@ -234,9 +244,11 @@ namespace AlienInvasion.Game
 
                     float dx = (x - half) / half;
                     float dy = (y - half) / half;
-                    float d = Mathf.Sqrt(dx * dx + dy * dy);
-                    float radial = Mathf.Clamp01(1f - d);
-                    radial = radial * radial; // 外周ほど柔らかくフェード
+                    // 四角ベースのフォールオフ(チェビシェフ距離=max(|dx|,|dy|))。円形(ユークリッド距離)だと
+                    // 正方形の四隅が切れて円形に見えるが、これだと四辺まで均等に届き四角い外形になる。
+                    float dmax = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+                    float radial = Mathf.Clamp01(1f - dmax);
+                    radial = radial * radial; // 外周(四辺)ほど柔らかくフェード=輪郭ぼんやり
 
                     float fb = Fbm(u * freq + off, v * freq + off);                                   // 斑
                     float rg = 1f - Mathf.Abs(2f * Fbm(u * freq * 2f + off * 2f, v * freq * 2f + off * 2f) - 1f); // 稜線(血管/ツタ状)

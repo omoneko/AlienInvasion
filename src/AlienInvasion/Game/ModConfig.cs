@@ -25,11 +25,13 @@ namespace AlienInvasion.Game
 
         // --- 母船の飛行 ---
         public const float MothershipStartAltitude = 800f;   // 出現高度(地表からの相対高さ)
-        public const float MothershipHoverAltitude = 220f;   // 降下後のホバリング高度
+        public const float MothershipHoverAltitude = 220f;   // 降下後のホバリング高度(爆撃中)
+        public const float MothershipLingerAltitude = 300f;  // 爆撃後、トライポッド活動中に上空で滞留する高度
         public const float DescendSeconds = 6f;
         public const float BombardSeconds = 10f;
         public const float StrikeIntervalSeconds = 0.6f;
-        public const float AscendSeconds = 5f;
+        public const float AscendSeconds = 5f;                // 爆撃後、滞留高度まで上昇する時間
+        public const float DepartSeconds = 6f;                // トライポッド消滅後、離脱(出現高度まで上昇し消滅)する時間
         public const float MothershipSpinDegPerSec = 60f;  // 母船の水平回転速度(度/秒)。速いほど明確に回る
         public const float MothershipScale = 1f;           // prefab 生成時のスケール(実機で調整)
 
@@ -47,8 +49,10 @@ namespace AlienInvasion.Game
 
         // --- トライポッド(召喚・自由移動) ---
         public const int TripodCount = 3;
-        public const float TripodSpeed = 30f;                // 水平移動速度(units/秒)
-        public const float TripodActiveSeconds = 60f;        // 出現から消滅までの活動時間(40->60, 1.5倍)
+        public const float TripodSpeed = 45f;                // 水平移動速度(units/秒)。30->45(1.5倍)
+        public const int TripodActiveDays = 14;              // 出現から消滅までの活動時間(ゲーム内日数)。
+                                                             // 実時間の秒ではなくゲーム時刻で判定するため、
+                                                             // ゲーム速度倍率で伸縮し一時停止中は進まない。
         public const float TripodTurnIntervalSeconds = 2.5f; // 方向転換の間隔
         public const float TripodTurnMaxDeg = 60f;           // 1回の方向転換の最大角(±)
         public const float TripodScale = 1f;
@@ -86,6 +90,7 @@ namespace AlienInvasion.Game
         public const float RedDecalYOffset = 0.3f;
 
         // --- 発動 ---
+        public const int MaxConcurrentInvasions = 5;   // 同時に進行できる襲来(UFO)の上限
         public const KeyCode ManualTriggerKey = KeyCode.F7;
         public const int RandomCheckIntervalTicks = 4096;
         public const int RandomChancePer10000 = 1;

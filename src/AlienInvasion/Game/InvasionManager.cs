@@ -1,235 +1,120 @@
-using AlienInvasion.Core;
 using UnityEngine;
 
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// 1回の襲来イベントの統括。
-    /// StartInvasion / UpdateVisual: いずれもメインスレッド専用(GameObject操作・フェーズタイマー・状態遷移の書き込み元)。
-    /// UpdateSimulation: シミュレーションスレッド専用(DisasterHelpers/汚染書込)。
-    /// InvasionState/フェーズタイマーは StartInvasion と UpdateVisual からのみ書き込む(single-writer、書き込み元は常にメインスレッド)。
-    /// UpdateSimulation は状態を読むのみで書き込まない。
+    /// 複数の襲来(UFO)を同時進行させる静的コーディネータ。最大 MaxConcurrentInvasions 個の
+    /// Invasion を固定長スロット配列で並走させる。
+    ///
+    /// スレッド境界規律(既存の単一襲来版と同じ思想を配列に拡張):
+    /// - スロット配列 _slots の「書き込み(生成・除去・全消去)」は全てメインスレッドのみ(single-writer)。
+    ///   StartInvasion / UpdateVisual(完了スロットのnull化) / ResetForNewLevel は全てメインスレッド。
+    /// - UpdateSimulation(シミュレーションスレッド)は各スロット参照をローカルに退避してから読むだけ
+    ///   (参照代入はアトモ―ミック。メインが同一スロットを null 化しても、退避済み参照を使うため NRE に
+    ///   ならず、既に巻き取り済みの Invasion をもう1tick処理するだけの良性レースに収まる)。
+    /// したがってロックは不要(書き手が常にメインスレッド1本)。
     /// </summary>
     public static class InvasionManager
     {
-        private static InvasionState _state = InvasionState.Idle;
-        private static Mothership _ship;
-        private static Vector3 _target;
-        private static float _phaseElapsed;
-        private static float _strikeTimer;
-        private static bool _bombardResolved;  // Bombarding終了時の陥没/建物破壊/汚染登録が完了したか
+        private static readonly Invasion[] _slots = new Invasion[ModConfig.MaxConcurrentInvasions];
 
+        /// <summary>いずれかの襲来が進行中か(ランダム発動の抑制などに使う)。</summary>
         public static bool IsActive
         {
-            get { return _state != InvasionState.Idle; }
+            get
+            {
+                for (int i = 0; i < _slots.Length; i++)
+                {
+                    if (_slots[i] != null) return true;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>現在進行中の襲来数。</summary>
+        public static int ActiveCount
+        {
+            get
+            {
+                int n = 0;
+                for (int i = 0; i < _slots.Length; i++)
+                {
+                    if (_slots[i] != null) n++;
+                }
+                return n;
+            }
+        }
+
+        /// <summary>まだ新しい襲来を開始できるか(上限未満か)。</summary>
+        public static bool CanStartMore
+        {
+            get { return ActiveCount < _slots.Length; }
+        }
+
+        /// <summary>
+        /// メインスレッド専用。空きスロットがあれば新しい襲来を開始する。上限に達している場合は何もしない。
+        /// Mothership の生成(Object.Instantiate/transform操作)を伴うため、シミュレーションスレッドから呼ばないこと。
+        /// </summary>
+        public static void StartInvasion(Vector3 targetPosition)
+        {
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                if (_slots[i] == null)
+                {
+                    _slots[i] = new Invasion(targetPosition);
+                    ModConfig.Log("Invasion started at " + targetPosition + " (" + ActiveCount + "/" + _slots.Length + ")");
+                    return;
+                }
+            }
+            ModConfig.Log("Invasion request ignored: already at max concurrent (" + _slots.Length + ")");
+        }
+
+        /// <summary>メインスレッド専用。全スロットの演出を1フレーム進め、完了したものをスロットから除去する。</summary>
+        public static void UpdateVisual(float simTimeDelta)
+        {
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                Invasion inv = _slots[i];
+                if (inv == null) continue;
+                bool stillActive = inv.UpdateVisual(simTimeDelta);
+                if (!stillActive) _slots[i] = null;
+            }
+        }
+
+        /// <summary>シミュレーションスレッド専用。各スロットの破壊/汚染書込を進める。</summary>
+        public static void UpdateSimulation()
+        {
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                Invasion inv = _slots[i]; // ローカルに退避(良性レース: 下記クラスコメント参照)
+                if (inv == null) continue;
+                inv.UpdateSimulation();
+            }
         }
 
         /// <summary>
         /// レベルロード時(InvasionDataExtension.OnLoadData)専用。メインスレッドで呼ばれる。
-        /// 別セーブへの切り替え時に、旧レベルの静的状態(_state/_target等)が残留して
-        /// 新レベルのシミュレーションに誤って作用する(誤破壊等)のを防ぐため、
-        /// 進行中の襲来を強制的に破棄しIdleへ戻す。フェーズ1では襲来状態自体は
-        /// セーブデータに永続化されないため、再開ではなくリセットが正しい挙動。
+        /// 別セーブへ切り替える際、旧レベルの静的状態が残留して新レベルへ誤作用するのを防ぐため、
+        /// 進行中の全襲来を強制破棄しスロットを空にする。フェーズ1では襲来状態はセーブに永続化されないため、
+        /// 再開ではなくリセットが正しい挙動。
         /// </summary>
         public static void ResetForNewLevel()
         {
             try
             {
-                _state = InvasionState.Idle;
-                if (_ship != null)
+                for (int i = 0; i < _slots.Length; i++)
                 {
-                    _ship.Destroy();
-                    _ship = null;
-                }
-                TripodManager.ResetForNewLevel();
-                _target = default(Vector3);
-                _phaseElapsed = 0f;
-                _strikeTimer = 0f;
-                _bombardResolved = false;
-            }
-            catch (System.Exception e)
-            {
-                ModConfig.LogError("ResetForNewLevel error: " + e);
-            }
-        }
-
-        /// <summary>
-        /// メインスレッド専用。Mothership の生成(Object.Instantiate/transform操作)と _state の書き込みを行うため、
-        /// UpdateVisual と同じスレッド境界規律に従い、シミュレーションスレッドから呼び出してはならない。
-        /// </summary>
-        public static void StartInvasion(Vector3 targetPosition)
-        {
-            if (_state != InvasionState.Idle) return;
-            _target = targetPosition;
-            _ship = new Mothership(targetPosition);
-            _state = InvasionState.Descending;
-            _phaseElapsed = 0f;
-            _strikeTimer = 0f;
-            _bombardResolved = false;
-            ModConfig.Log("Invasion started at " + targetPosition);
-        }
-
-        public static void UpdateVisual(float realTimeDelta)
-        {
-            if (_state == InvasionState.Idle) return;
-            try
-            {
-                if (_state == InvasionState.Done)
-                {
-                    _state = InvasionStateMachine.Next(_state);
-                    return;
-                }
-
-                _phaseElapsed += realTimeDelta;
-
-                switch (_state)
-                {
-                    case InvasionState.Descending:
-                        UpdateDescending(realTimeDelta);
-                        break;
-                    case InvasionState.Bombarding:
-                        UpdateBombarding(realTimeDelta);
-                        break;
-                    case InvasionState.Ascending:
-                        UpdateAscending(realTimeDelta);
-                        break;
-                    case InvasionState.TripodDeploy:
-                        UpdateTripodDeploy();
-                        break;
-                    case InvasionState.TripodsActive:
-                        UpdateTripodsActive(realTimeDelta);
-                        break;
+                    if (_slots[i] != null)
+                    {
+                        _slots[i].ForceCleanup();
+                        _slots[i] = null;
+                    }
                 }
             }
             catch (System.Exception e)
             {
-                ModConfig.LogError("UpdateVisual error: " + e);
+                ModConfig.LogError("InvasionManager.ResetForNewLevel error: " + e);
             }
-        }
-
-        private static void UpdateDescending(float realTimeDelta)
-        {
-            float t = _phaseElapsed / ModConfig.DescendSeconds;
-            float eased = MovementMath.EaseInOut(t);
-            float altitude = MovementMath.Lerp(ModConfig.MothershipStartAltitude, ModConfig.MothershipHoverAltitude, eased);
-            _ship.SetAltitude(altitude);
-            _ship.Spin(realTimeDelta);
-            if (t >= 1f)
-            {
-                _state = InvasionStateMachine.Next(_state);
-                _phaseElapsed = 0f;
-            }
-        }
-
-        private static void UpdateBombarding(float realTimeDelta)
-        {
-            _ship.SetAltitude(ModConfig.MothershipHoverAltitude);
-            _ship.Spin(realTimeDelta);
-            _strikeTimer += realTimeDelta;
-            if (_strikeTimer >= ModConfig.StrikeIntervalSeconds)
-            {
-                _strikeTimer = 0f;
-                Vector3 groundPoint = _target + new Vector3(
-                    Random.Range(-ModConfig.StrikeScatterRadius, ModConfig.StrikeScatterRadius),
-                    0f,
-                    Random.Range(-ModConfig.StrikeScatterRadius, ModConfig.StrikeScatterRadius));
-                Effects.PlayLightningStrike(groundPoint, _ship.SkyPointForBolt());
-            }
-
-            // 陥没穴は Bombarding 終了時に ResolveBombardDamage で1回だけ形成する
-            // (MakeCrater を毎tick呼ぶと相対掘削が累積して異常に深くなるため。ModConfig 参照)。
-            if (_phaseElapsed >= ModConfig.BombardSeconds)
-            {
-                _state = InvasionStateMachine.Next(_state);
-                _phaseElapsed = 0f;
-            }
-        }
-
-        private static void UpdateAscending(float realTimeDelta)
-        {
-            float t = _phaseElapsed / ModConfig.AscendSeconds;
-            float eased = MovementMath.EaseInOut(t);
-            float altitude = MovementMath.Lerp(ModConfig.MothershipHoverAltitude, ModConfig.MothershipStartAltitude, eased);
-            _ship.SetAltitude(altitude);
-            _ship.Spin(realTimeDelta);
-            if (t >= 1f)
-            {
-                _ship.Destroy();
-                _ship = null;
-                _state = InvasionStateMachine.Next(_state); // -> TripodDeploy
-            }
-        }
-
-        /// <summary>
-        /// 3体のトライポッドを母船クレーター跡付近に召喚し、即座に TripodsActive へ進める
-        /// (この状態は1フレームのみの処理であり、次フレームから移動を開始する)。メインスレッド専用。
-        /// </summary>
-        private static void UpdateTripodDeploy()
-        {
-            TripodManager.Spawn(_target);
-            _state = InvasionStateMachine.Next(_state); // -> TripodsActive
-            _phaseElapsed = 0f;
-        }
-
-        /// <summary>
-        /// トライポッドの自由移動を進め、活動時間(TripodActiveSeconds)を超えたら全体を消滅させて
-        /// Done へ進める。移動計算(TripodManager.UpdateVisual)は GameObject の有無に関わらず継続するため、
-        /// AssetBundle未生成でもタイマーはハングせずに進行する。メインスレッド専用。
-        /// </summary>
-        private static void UpdateTripodsActive(float realTimeDelta)
-        {
-            TripodManager.UpdateVisual(realTimeDelta);
-            if (TripodManager.IsFinished)
-            {
-                TripodManager.DespawnAll();
-                _state = InvasionStateMachine.Next(_state); // -> Done
-                _phaseElapsed = 0f;
-            }
-        }
-
-        /// <summary>シミュレーションスレッドから毎tick呼ぶ。DisasterHelpers/汚染書込はここでのみ行う。</summary>
-        public static void UpdateSimulation()
-        {
-            try
-            {
-                if (_state == InvasionState.Ascending && !_bombardResolved)
-                {
-                    _bombardResolved = true;
-                    ResolveBombardDamage();
-                }
-                else if (_state == InvasionState.TripodsActive)
-                {
-                    TripodManager.UpdateSimulation();
-                }
-                else if (_state == InvasionState.Idle)
-                {
-                    // 防御的な二重リセット: StartInvasion の一次リセットは既に行われているはずだが、
-                    // 万一 UpdateSimulation が次サイクルの StartInvasion 実行前に Idle を観測した場合に備え、
-                    // ここでも _bombardResolved を false に揃えておく(現状のロジックでは必須ではない安全策)。
-                    _bombardResolved = false;
-                }
-            }
-            catch (System.Exception e)
-            {
-                ModConfig.LogError("UpdateSimulation error: " + e);
-            }
-        }
-
-        private static void ResolveBombardDamage()
-        {
-            // 陥没穴を1回だけ形成する(バニラ災害規模5.5相当。SinkholeAI と同じ MakeCrater 呼び出し)。
-            // 毎tickではなくここで1回だけ適用することで、相対掘削の累積による過剰な深さを防ぐ。
-            DisasterHelpers.MakeCrater(new Vector2(_target.x, _target.z), ModConfig.SinkholeRadius, ModConfig.SinkholeDepth, false);
-
-            int seed = (int)SimulationManager.instance.m_randomizer.Int32(1000000u);
-            // preRadius は totalRadius と同じ値にする(0だと何も破壊されないという既知の罠を回避)
-            DisasterHelpers.DestroyStuff(seed, null, _target, ModConfig.DestructionRadius, ModConfig.DestructionRadius, 0f,
-                ModConfig.DestructionRadius * 0.5f, ModConfig.DestructionRadius, ModConfig.DestructionRadius * 0.3f, ModConfig.DestructionRadius * 0.6f);
-
-            long startTicks = SimulationManager.instance.m_currentGameTime.Ticks;
-            var zone = new ContaminationZone(_target.x, _target.z, ModConfig.ContaminationRadius, startTicks);
-            ContaminationManager.AddZone(zone);
-            ModConfig.Log("Bombardment resolved: sinkhole+destruction+contamination at " + _target);
         }
     }
 }

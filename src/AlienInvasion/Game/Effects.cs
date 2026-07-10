@@ -14,6 +14,41 @@ namespace AlienInvasion.Game
         private const float BeamLifetime = 0.12f;
         private static Material _beamMaterial;
 
+        /// <summary>
+        /// LineRenderer 用の発光ライン素材を、CSで実際に使えるシェーダーで生成する。
+        /// "Particles/Additive" は CS のランタイムでは除去されていて null になりがちで、その場合
+        /// マテリアルが付かず「マゼンタ(ピンク紫)」になる。そこで加算系→スプライト→Unlit の順で
+        /// 実在するシェーダーを探し、色は _TintColor / _Color / _EmissionColor / material.color の
+        /// どれが有効でも狙った色(青白)になるよう全てに設定する。全滅時のみ Standard(発光しないが
+        /// マゼンタは回避)へフォールバックする。メインスレッド専用。
+        /// </summary>
+        private static Material CreateLineMaterial(Color tint)
+        {
+            try
+            {
+                RenderAssets.DumpAvailableShadersOnce();
+                Shader shader = RenderAssets.FindFirst(
+                    "Particles/Additive", "Particles/Alpha Blended", "Sprites/Default",
+                    "Unlit/Transparent", "Unlit/Color");
+                if (shader == null) shader = RenderAssets.FindLoadedContaining("additive", "particle", "sprite", "unlit");
+                if (shader == null) shader = Shader.Find("Standard"); // 最後の砦(発光しないがマゼンタ回避)
+                if (shader == null) return null;
+
+                var mat = new Material(shader);
+                if (mat.HasProperty("_TintColor")) mat.SetColor("_TintColor", tint);
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", tint);
+                if (mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", tint);
+                mat.color = tint;
+                ModConfig.Log("Effects: line material shader = " + shader.name);
+                return mat;
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("Effects.CreateLineMaterial error: " + e);
+                return null;
+            }
+        }
+
         public static void PlayLightningStrike(Vector3 groundPoint, Vector3 skyPoint)
         {
             try
@@ -32,15 +67,7 @@ namespace AlienInvasion.Game
         {
             if (_boltMaterial == null)
             {
-                Shader shader = Shader.Find("Particles/Additive");
-                if (shader != null)
-                {
-                    _boltMaterial = new Material(shader);
-                    // Particles/Additive の発光色は _TintColor で決まる。ここで青白に固定する
-                    // (未設定だと既定の灰色ティントで意図した色が出ず紫っぽく見えることがある)。
-                    if (_boltMaterial.HasProperty("_TintColor"))
-                        _boltMaterial.SetColor("_TintColor", ModConfig.BoltColor);
-                }
+                _boltMaterial = CreateLineMaterial(ModConfig.BoltColor);
             }
 
             var go = new GameObject("AlienInvasion_LightningBolt");
@@ -91,13 +118,7 @@ namespace AlienInvasion.Game
         {
             if (_beamMaterial == null)
             {
-                Shader shader = Shader.Find("Particles/Additive");
-                if (shader != null)
-                {
-                    _beamMaterial = new Material(shader);
-                    if (_beamMaterial.HasProperty("_TintColor"))
-                        _beamMaterial.SetColor("_TintColor", ModConfig.BeamColor);
-                }
+                _beamMaterial = CreateLineMaterial(ModConfig.BeamColor);
             }
 
             var go = new GameObject("AlienInvasion_TripodBeam");

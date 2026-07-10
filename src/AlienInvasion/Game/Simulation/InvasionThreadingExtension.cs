@@ -57,12 +57,17 @@ namespace AlienInvasion.Game.Simulation
         {
             try
             {
-                // ゲームが一時停止中は襲来の進行(降下・回転・移動・上下動・ビーム)を凍結する。
-                // OnUpdate はレンダースレッドのため一時停止中も realTimeDelta が進み続けるが、
-                // それをそのまま使うと停止中でもUFO/トライポッドが動いてしまうため。
+                // 襲来の進行(降下・回転・移動・上下動・ビーム)はゲーム速度に連動させる。
+                // CS が OnUpdate に渡す simulationTimeDelta は「ゲーム速度倍率で伸縮し、一時停止中は
+                // 0 になる」描画補間用のスムーズなデルタ(CS本体が車両・市民の描画補間にも使う値)。
+                // これを realTimeDelta の代わりに UpdateVisual へ渡すことで:
+                //   - 2倍/3倍速で降下・移動・回転・ビーム間隔もそのぶん速くなる
+                //   - 一時停止中は 0 なので進行が自然に凍結する(下の !paused ゲートと二重の安全)
+                //   - トライポッド滞在時間(ゲーム内14日=ゲーム時刻ベース)と伸縮の向きが一致する
+                // なお 1倍速では simulationTimeDelta ≒ realTimeDelta(既存の秒指定の定数はそのまま有効)。
                 bool paused = SimulationManager.instance.SimulationPaused;
 
-                if (Input.GetKeyDown(ModConfig.ManualTriggerKey) && !InvasionManager.IsActive)
+                if (Input.GetKeyDown(ModConfig.ManualTriggerKey) && InvasionManager.CanStartMore)
                 {
                     // Task 16: F7は即時発動ではなく、UIボタンと同じ配置ツール(狙って左クリックで確定)を
                     // 起動するだけに変更。実際の StartInvasion 呼び出しは
@@ -76,8 +81,10 @@ namespace AlienInvasion.Game.Simulation
 
                 if (!paused)
                 {
+                    // ランダム発動抽選は「実時間でどれくらい経ったら1回抽選するか」なので realTimeDelta のまま。
                     MaybeRollRandomInvasion(realTimeDelta);
-                    InvasionManager.UpdateVisual(realTimeDelta);
+                    // 襲来演出の進行はゲーム速度連動(simulationTimeDelta)で駆動する。
+                    InvasionManager.UpdateVisual(simulationTimeDelta);
                 }
 
                 RedContaminationVisual.Sync(ContaminationManager.Zones);
