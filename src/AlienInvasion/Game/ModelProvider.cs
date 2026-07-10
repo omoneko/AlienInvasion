@@ -182,9 +182,9 @@ namespace AlienInvasion.Game
                 Material mat = new Material(shader);
                 Color c = ModConfig.RedDecalColor;
 
-                // 中心が濃く外周へ透明にフェードする放射状テクスチャで、境界のぼやけた
-                // ソフトな円形の汚染パッチにする(ハードな四角の単色を避ける)。
-                Texture2D tex = BuildRadialTexture(c, 128);
+                // 宇宙戦争の"レッドウィード"風。Perlinノイズで血管/ツタ状の有機的な赤い繁茂を生成し、
+                // 外周へ放射状にフェード、薄い部分は透明にして地面が透ける隙間を作る。
+                Texture2D tex = BuildContaminationTexture(c, 256);
                 mat.mainTexture = tex;
                 if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
 
@@ -206,29 +206,68 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// 中心が濃く外周へ向かってアルファが0にフェードする放射状テクスチャを生成する。
-        /// RGBは color の色、アルファは中心で color.a・円の外周(および四隅)で0。
-        /// これで四角い単色タイルではなく、境界のぼやけたソフトな円形の汚染パッチになる。
+        /// 宇宙戦争の"レッドウィード"風の汚染テクスチャを生成する。
+        /// Perlinノイズのfbm(斑)とridged(血管/ツタ状の稜線)を合成した密度で、深いクリムゾンから
+        /// tint色(オレンジ寄り赤)へ色を補間。アルファは外周への放射状フェード×密度で、薄い部分は
+        /// 透明にして地面が透ける有機的な隙間を作る。tint.a を中心のピーク不透明度として使う。
         /// </summary>
-        private static Texture2D BuildRadialTexture(Color color, int size)
+        private static Texture2D BuildContaminationTexture(Color tint, int size)
         {
             var tex = new Texture2D(size, size, TextureFormat.ARGB32, false);
             tex.wrapMode = TextureWrapMode.Clamp;
             float half = (size - 1) * 0.5f;
+
+            Color baseCol = new Color(tint.r * 0.35f, tint.g * 0.12f, tint.b * 0.10f); // 深いクリムゾン
+            Color highCol = new Color(tint.r, tint.g, tint.b);                          // オレンジ寄り赤
+            float peak = tint.a;
+
+            const float freq = 4.5f;   // 模様の粗さ
+            const float off = 13.37f;  // ラティス格子アーティファクト回避のオフセット
+
+            var pixels = new Color[size * size]; // SetPixels一括(SetPixelのループより高速)
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
+                    float u = (float)x / size;
+                    float v = (float)y / size;
+
                     float dx = (x - half) / half;
                     float dy = (y - half) / half;
-                    float d = Mathf.Sqrt(dx * dx + dy * dy); // 中心0, 内接円の外周で1
-                    float t = Mathf.Clamp01(1f - d);
-                    float a = t * t * color.a;               // 二次カーブで外周ほど柔らかくフェード
-                    tex.SetPixel(x, y, new Color(color.r, color.g, color.b, a));
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float radial = Mathf.Clamp01(1f - d);
+                    radial = radial * radial; // 外周ほど柔らかくフェード
+
+                    float fb = Fbm(u * freq + off, v * freq + off);                                   // 斑
+                    float rg = 1f - Mathf.Abs(2f * Fbm(u * freq * 2f + off * 2f, v * freq * 2f + off * 2f) - 1f); // 稜線(血管/ツタ状)
+                    float density = Mathf.Clamp01(fb * 0.55f + rg * 0.55f);
+
+                    Color col = Color.Lerp(baseCol, highCol, Mathf.Clamp01(density * 1.2f));
+
+                    // 密度が低い所は透明(地面が透ける隙間)。中心ほど濃く、外周へフェード。
+                    float a = radial * peak * Mathf.Clamp01((density - 0.25f) * 1.8f);
+
+                    pixels[y * size + x] = new Color(col.r, col.g, col.b, a);
                 }
             }
+            tex.SetPixels(pixels);
             tex.Apply();
             return tex;
+        }
+
+        /// <summary>4オクターブの Perlin ノイズによる fbm(概ね 0..1)。</summary>
+        private static float Fbm(float x, float y)
+        {
+            float sum = 0f;
+            float amp = 0.5f;
+            float freq = 1f;
+            for (int i = 0; i < 4; i++)
+            {
+                sum += Mathf.PerlinNoise(x * freq, y * freq) * amp;
+                freq *= 2f;
+                amp *= 0.5f;
+            }
+            return sum;
         }
     }
 }

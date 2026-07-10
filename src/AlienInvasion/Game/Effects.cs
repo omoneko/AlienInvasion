@@ -33,7 +33,14 @@ namespace AlienInvasion.Game
             if (_boltMaterial == null)
             {
                 Shader shader = Shader.Find("Particles/Additive");
-                if (shader != null) _boltMaterial = new Material(shader);
+                if (shader != null)
+                {
+                    _boltMaterial = new Material(shader);
+                    // Particles/Additive の発光色は _TintColor で決まる。ここで青白に固定する
+                    // (未設定だと既定の灰色ティントで意図した色が出ず紫っぽく見えることがある)。
+                    if (_boltMaterial.HasProperty("_TintColor"))
+                        _boltMaterial.SetColor("_TintColor", ModConfig.BoltColor);
+                }
             }
 
             var go = new GameObject("AlienInvasion_LightningBolt");
@@ -42,8 +49,9 @@ namespace AlienInvasion.Game
             if (_boltMaterial != null) line.material = _boltMaterial;
             line.startWidth = 4f;
             line.endWidth = 1.5f;
-            line.startColor = new Color(0.8f, 0.9f, 1f, 1f);
-            line.endColor = new Color(0.8f, 0.9f, 1f, 0.6f);
+            Color bolt = ModConfig.BoltColor;
+            line.startColor = new Color(bolt.r, bolt.g, bolt.b, 1f);
+            line.endColor = new Color(bolt.r, bolt.g, bolt.b, 0.6f);
 
             const int segments = 6;
             line.positionCount = segments + 1;
@@ -84,7 +92,12 @@ namespace AlienInvasion.Game
             if (_beamMaterial == null)
             {
                 Shader shader = Shader.Find("Particles/Additive");
-                if (shader != null) _beamMaterial = new Material(shader);
+                if (shader != null)
+                {
+                    _beamMaterial = new Material(shader);
+                    if (_beamMaterial.HasProperty("_TintColor"))
+                        _beamMaterial.SetColor("_TintColor", ModConfig.BeamColor);
+                }
             }
 
             var go = new GameObject("AlienInvasion_TripodBeam");
@@ -94,8 +107,8 @@ namespace AlienInvasion.Game
             line.startWidth = 1.5f;
             line.endWidth = 0.5f;
 
-            Color beamColor = new Color(1f, 0.1f, 0.1f);
-            line.startColor = beamColor;
+            Color beamColor = ModConfig.BeamColor;
+            line.startColor = new Color(beamColor.r, beamColor.g, beamColor.b, 1f);
             line.endColor = new Color(beamColor.r, beamColor.g, beamColor.b, 0.6f);
 
             line.positionCount = 2;
