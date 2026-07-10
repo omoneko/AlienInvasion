@@ -69,6 +69,11 @@ namespace AlienInvasion.Game
         public const float BeamMaxAngleDeg = 60f;                  // ビームの俯角の最大
         public const float BeamMaxRange = 180f;                    // ビーム着弾までの水平距離の上限
 
+        // --- 着弾爆発エフェクト(UFOの雷着弾・トライポッドのレーザー着弾で共用) ---
+        // 隕石着弾エフェクトを流用しているが本来は巨大隕石用で大きすぎるため、magnitudeを下げて縮小する。
+        // DispatchEffect の magnitude はエフェクトの強度/スケールを決める。実機で見て調整可。
+        public const float ImpactEffectMagnitude = 0.12f;
+
         // --- 汚染(赤) ---
         public const int ExpiryMonths = 2;              // 汚染が消滅するまでのゲーム内時間(月)
         public const float ContaminationRadius = 90f;   // 陥没穴跡の汚染半径

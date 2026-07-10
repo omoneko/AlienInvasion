@@ -124,7 +124,7 @@ namespace AlienInvasion.Game
             if (effect == null) return;
             var spawnArea = new EffectInfo.SpawnArea(position, Vector3.up, 0f);
             Singleton<EffectManager>.instance.DispatchEffect(
-                effect, default(InstanceID), spawnArea, Vector3.zero, 0f, 0.5f,
+                effect, default(InstanceID), spawnArea, Vector3.zero, 0f, ModConfig.ImpactEffectMagnitude,
                 Singleton<VehicleManager>.instance.m_audioGroup);
         }
 
