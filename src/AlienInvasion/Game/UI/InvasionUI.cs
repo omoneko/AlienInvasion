@@ -4,92 +4,110 @@ using UnityEngine;
 namespace AlienInvasion.Game.UI
 {
     /// <summary>
-    /// UFO召喚ボタンの生成/破棄。
+    /// バニラ災害パネル(DisastersPanel)の「災害アイコン列」(UIScrollablePanel)の中に、
+    /// UFO召喚アイコンをバニラ災害アイコンと並べて追加する。列の自動レイアウトに乗るため
+    /// 他MOD(ミサイル等)や既存アイコンと重ならず、パネルにも見切れない。
     ///
-    /// 配置方針(ユーザ選択: 「災害タブ横に独立ボタン」):
-    /// バニラの災害パネル DisastersPanel のルート(component)直下に独立した子ボタンとして貼る。
-    /// - DisastersPanel は GeneratedScrollPanel 派生で、タブを開く度に RefreshPanel が
-    ///   内部の m_ScrollablePanel(スクロール可能な災害アイコン列)だけを再生成する。
-    ///   本ボタンはその m_ScrollablePanel の中には入れず、パネルのルート直下に置くため
-    ///   再生成に巻き込まれず安定する。
-    /// - パネルのルートの子なので、災害グループを開くと自動的に一緒に表示され、
-    ///   別タブに切り替えると自動的に隠れる(手動の表示制御が不要)。
-    ///
-    /// DisastersPanel は災害グループを初めて開くまで生成されない場合があるため、
-    /// EnsureAttached() を毎フレーム(メインスレッド)呼んでパネル出現を待って取り付ける。
-    /// 一定フレーム経っても見つからない場合(例: Natural Disasters DLC 未所持)は、
-    /// フォールバックとして画面左上に常時ボタンを出す(機能を失わせない)。
-    ///
-    /// 静的状態はレベルロード毎に InvasionLoadingExtension が CreateButton/DestroyButton を
-    /// 呼んで張り直す前提。Task 11レビューの「静的状態がレベルをまたいで残留する」不具合を
-    /// 避けるため、DestroyButton で必ず参照を破棄・null化・フラグをリセットすること。
+    /// 注意: DisastersPanel はタブを開く度に列を再生成する(RefreshPanel)ため、追加したボタンが
+    /// 消えることがある。EnsureAttached() を毎フレーム(メインスレッド)呼び、_button が消えていたら
+    /// 貼り直す。列が見つからない環境(例: Natural Disasters DLC 未所持)は猶予後に右上フォールバック。
     /// </summary>
     public static class InvasionUI
     {
         private const string ButtonName = "AlienInvasionSummonButton";
 
         private static UIButton _button;
-        private static bool _attached;      // 災害パネルへの取り付け(またはフォールバック生成)が完了したか
-        private static int _waitFrames;     // 災害パネルを待っているフレーム数
+        private static Texture2D _iconTex;  // UFOアイコン
+        private static bool _rowFound;
+        private static bool _fallback;
+        private static int _waitFrames;
 
-        /// <summary>レベルロード時に呼ぶ。まだ災害パネルが無ければ EnsureAttached が後で拾う。</summary>
         public static void CreateButton()
         {
-            _attached = false;
+            _button = null;
+            _rowFound = false;
+            _fallback = false;
             _waitFrames = 0;
-            TryAttachToDisasterPanel();
+            EnsureAttached();
         }
 
-        /// <summary>
-        /// OnUpdate(メインスレッド)から毎フレーム呼ぶ。未取り付けの間だけ動作し、
-        /// 災害パネルの出現を待って取り付ける。猶予フレームを超えたらフォールバックボタンを出す。
-        /// </summary>
+        /// <summary>OnUpdate(メインスレッド)から毎フレーム呼ぶ。列再生成で消えたら貼り直す。</summary>
         public static void EnsureAttached()
         {
-            if (_attached) return;
+            if (_fallback) return;
+            if (_button != null) return;
 
-            TryAttachToDisasterPanel();
-            if (_attached) return;
-
-            if (++_waitFrames >= ModConfig.SummonButtonFallbackFrames)
-            {
-                CreateFallbackButton();
-            }
+            if (TryAttachToRow()) { _rowFound = true; return; }
+            if (!_rowFound && ++_waitFrames >= ModConfig.SummonButtonFallbackFrames) CreateFallbackButton();
         }
 
-        private static void TryAttachToDisasterPanel()
+        private static bool TryAttachToRow()
         {
             try
             {
                 DisastersPanel panel = Object.FindObjectOfType<DisastersPanel>();
-                if (panel == null || panel.component == null) return;
+                if (panel == null || panel.component == null) return false;
+                UIScrollablePanel row = panel.component.GetComponentInChildren<UIScrollablePanel>();
+                if (row == null) return false;
 
-                UIComponent host = panel.component;
+                UIButton existing = row.Find<UIButton>(ButtonName);
+                if (existing != null) { _button = existing; return true; }
 
-                // 既に同名ボタンがあれば二重生成しない
-                if (host.Find<UIButton>(ButtonName) != null)
-                {
-                    _attached = true;
-                    return;
-                }
-
-                UIButton button = host.AddUIComponent<UIButton>();
-                StyleButton(button);
-
-                // パネル右端に右寄せ、上端の少し上(災害アイコン列の上)に配置
-                float x = Mathf.Max(0f, host.width - button.width - ModConfig.SummonButtonOffsetX);
-                button.relativePosition = new Vector3(x, ModConfig.SummonButtonOffsetY);
-
+                UIButton button = row.AddUIComponent<UIButton>();
+                StyleTile(button, row);
                 _button = button;
-                _attached = true;
-                ModConfig.Log("UFO召喚ボタンを災害パネルに取り付けました "
-                    + "(panel size=" + host.width + "x" + host.height
-                    + ", button pos=" + button.relativePosition + ")");
+                ModConfig.Log("UFOアイコンを災害アイコン列に追加しました");
+                return true;
             }
             catch (System.Exception e)
             {
-                ModConfig.LogError("InvasionUI.TryAttachToDisasterPanel error: " + e);
+                ModConfig.LogError("InvasionUI.TryAttachToRow error: " + e);
+                return false;
             }
+        }
+
+        private static void StyleTile(UIButton button, UIScrollablePanel row)
+        {
+            button.name = ButtonName;
+            UIButton sample = FirstOtherButton(row);
+            Vector2 sz = (sample != null && sample.size.x > 1f) ? sample.size : new Vector2(100f, 100f);
+            button.size = sz;
+
+            if (sample != null)
+            {
+                button.atlas = sample.atlas;
+                button.normalBgSprite = sample.normalBgSprite;
+                button.hoveredBgSprite = sample.hoveredBgSprite;
+                button.pressedBgSprite = sample.pressedBgSprite;
+                button.focusedBgSprite = sample.focusedBgSprite;
+                button.disabledBgSprite = sample.disabledBgSprite;
+            }
+            else
+            {
+                button.normalBgSprite = "ButtonMenu";
+                button.hoveredBgSprite = "ButtonMenuHovered";
+                button.pressedBgSprite = "ButtonMenuPressed";
+            }
+            button.tooltip = "Select a location to summon the UFO mothership";
+            button.eventClick += OnButtonClick;
+
+            if (_iconTex == null) _iconTex = UfoIcon.Build(64);
+            var icon = button.AddUIComponent<UITextureSprite>();
+            float isz = Mathf.Min(sz.x, sz.y) * 0.62f;
+            icon.texture = _iconTex;
+            icon.size = new Vector2(isz, isz);
+            icon.relativePosition = new Vector3((sz.x - isz) * 0.5f, (sz.y - isz) * 0.5f);
+            icon.isInteractive = false;
+        }
+
+        private static UIButton FirstOtherButton(UIScrollablePanel row)
+        {
+            UIButton[] bs = row.GetComponentsInChildren<UIButton>();
+            for (int i = 0; i < bs.Length; i++)
+            {
+                if (bs[i] != null && bs[i].name != ButtonName && bs[i].size.x > 1f) return bs[i];
+            }
+            return null;
         }
 
         private static void CreateFallbackButton()
@@ -97,53 +115,72 @@ namespace AlienInvasion.Game.UI
             try
             {
                 UIView view = UIView.GetAView();
-                if (view == null)
-                {
-                    ModConfig.LogError("InvasionUI.CreateFallbackButton: UIView.GetAView() が null");
-                    _attached = true; // これ以上リトライしない
-                    return;
-                }
-
-                if (view.FindUIComponent<UIButton>(ButtonName) != null)
-                {
-                    _attached = true;
-                    return;
-                }
+                if (view == null) { _fallback = true; return; }
+                if (view.FindUIComponent<UIButton>(ButtonName) != null) { _fallback = true; return; }
 
                 UIButton button = view.AddUIComponent(typeof(UIButton)) as UIButton;
-                if (button == null)
-                {
-                    ModConfig.LogError("InvasionUI.CreateFallbackButton: UIButton 生成失敗");
-                    _attached = true;
-                    return;
-                }
-
-                StyleButton(button);
-                button.relativePosition = new Vector3(20f, 60f);
-
+                if (button == null) { _fallback = true; return; }
+                StyleFallback(button);
+                button.relativePosition = FindTopRightSlot(view, button);
                 _button = button;
-                _attached = true;
-                ModConfig.Log("災害パネルが見つからなかったため、UFO召喚ボタンを画面左上に生成しました(フォールバック)");
+                _fallback = true;
+                ModConfig.Log("災害列が見つからないため、UFO召喚ボタンを画面右上に生成しました(フォールバック)");
             }
             catch (System.Exception e)
             {
                 ModConfig.LogError("InvasionUI.CreateFallbackButton error: " + e);
-                _attached = true;
+                _fallback = true;
             }
         }
 
-        private static void StyleButton(UIButton button)
+        private static void StyleFallback(UIButton button)
         {
-            // 言語に依存しない固定表記(ローカライズの取りこぼしを避けるため)。
             button.name = ButtonName;
-            button.text = "UFO !";
-            button.textScale = 0.85f;
             button.size = new Vector2(ModConfig.SummonButtonWidth, ModConfig.SummonButtonHeight);
             button.normalBgSprite = "ButtonMenu";
             button.hoveredBgSprite = "ButtonMenuHovered";
             button.pressedBgSprite = "ButtonMenuPressed";
             button.tooltip = "Select a location to summon the UFO mothership";
             button.eventClick += OnButtonClick;
+
+            if (_iconTex == null) _iconTex = UfoIcon.Build(30);
+            var icon = button.AddUIComponent<UITextureSprite>();
+            icon.texture = _iconTex;
+            icon.size = new Vector2(30f, 30f);
+            icon.relativePosition = new Vector3((ModConfig.SummonButtonWidth - 30f) * 0.5f, (ModConfig.SummonButtonHeight - 30f) * 0.5f);
+            icon.isInteractive = false;
+        }
+
+        private static Vector3 FindTopRightSlot(UIView view, UIComponent self)
+        {
+            Vector2 res = view.GetScreenResolution();
+            float w = ModConfig.SummonButtonWidth, h = ModConfig.SummonButtonHeight;
+            const float margin = 8f, gap = 6f;
+            float x = Mathf.Max(0f, res.x - w - margin);
+            UIButton[] buttons = view.GetComponentsInChildren<UIButton>();
+            for (float y = margin; y <= res.y * 0.5f; y += h + gap)
+            {
+                Rect slot = new Rect(x, y, w, h);
+                if (!OverlapsAnyButton(buttons, slot, self, res)) return new Vector3(x, y);
+            }
+            return new Vector3(x, margin);
+        }
+
+        private static bool OverlapsAnyButton(UIButton[] buttons, Rect slot, UIComponent self, Vector2 res)
+        {
+            if (buttons == null) return false;
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                UIButton b = buttons[i];
+                if (b == null || b == self || !b.isVisible) continue;
+                Vector2 sz = b.size;
+                if (sz.x <= 1f || sz.y <= 1f) continue;
+                if (sz.x > res.x * 0.5f || sz.y > res.y * 0.5f) continue;
+                Vector3 ap = b.absolutePosition;
+                Rect br = new Rect(ap.x, ap.y, sz.x, sz.y);
+                if (br.Overlaps(slot)) return true;
+            }
+            return false;
         }
 
         public static void DestroyButton()
@@ -156,6 +193,11 @@ namespace AlienInvasion.Game.UI
                     Object.Destroy(_button.gameObject);
                     _button = null;
                 }
+                if (_iconTex != null)
+                {
+                    Object.Destroy(_iconTex);
+                    _iconTex = null;
+                }
             }
             catch (System.Exception e)
             {
@@ -163,7 +205,8 @@ namespace AlienInvasion.Game.UI
             }
             finally
             {
-                _attached = false;
+                _rowFound = false;
+                _fallback = false;
                 _waitFrames = 0;
             }
         }
@@ -172,11 +215,32 @@ namespace AlienInvasion.Game.UI
         {
             try
             {
+                // 災害列のクリック処理にバニラ災害を選ばせない：イベント消費＋選択解除してから母船設置ツールを起動。
+                try { if (eventParam != null) eventParam.Use(); } catch { }
+                ClearDisasterSelection();
                 ToolsModifierControl.SetTool<MothershipPlacementTool>();
             }
             catch (System.Exception e)
             {
                 ModConfig.LogError("InvasionUI.OnButtonClick error: " + e);
+            }
+        }
+
+        /// <summary>災害パネルの選択(ハイライト/武装)を解除する。</summary>
+        private static void ClearDisasterSelection()
+        {
+            try
+            {
+                DisastersPanel panel = Object.FindObjectOfType<DisastersPanel>();
+                if (panel == null) return;
+                System.Reflection.PropertyInfo prop = typeof(GeneratedScrollPanel).GetProperty(
+                    "selectedIndex",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (prop != null && prop.CanWrite) prop.SetValue(panel, -1, null);
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("InvasionUI.ClearDisasterSelection error: " + e);
             }
         }
     }

@@ -23,6 +23,7 @@ namespace AlienInvasion.Game
                     AssetLoader.Initialize(info.modPath);
                     ModelProvider.Initialize(info.modPath);
                     SoundManager.Initialize(info.modPath);
+                    UI.UfoIcon.SetModDirectory(info.modPath); // タブアイコンに icon.png を使う
                 }
                 else
                 {

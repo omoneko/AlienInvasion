@@ -41,6 +41,15 @@ if (Test-Path $soundsSrcDir) {
     Write-Host "警告: $soundsSrcDir が見つかりません。効果音は再生されません。"
 }
 
+# タブ内アイコン(災害パネル)。MODフォルダ直下に icon.png を配置し、ボタンがこれを使う。
+$iconSrc = "icon.png"
+if (Test-Path $iconSrc) {
+    Copy-Item $iconSrc (Join-Path $modDir "icon.png") -Force
+    Write-Host "icon.png(タブアイコン)を配置しました"
+} else {
+    Write-Host "警告: $iconSrc が見つかりません。タブアイコンは手続き生成シルエットになります。"
+}
+
 # Workshop用プレビュー画像。Mod共有時にCSはMODフォルダ直下の PreviewImage.png を使う。
 # 無いと既定のプレースホルダ(青写真)のままになり画像を変更できないため、毎回配置する。
 $previewSrc = "docs\workshop\PreviewImage.png"

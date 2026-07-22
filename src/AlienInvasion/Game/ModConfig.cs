@@ -82,6 +82,15 @@ namespace AlienInvasion.Game
         public const float BeamMaxAngleDeg = 60f;                  // ビームの俯角の最大
         public const float BeamMaxRange = 180f;                    // ビーム着弾までの水平距離の上限
 
+        // --- 核直撃で転倒(Missile Disaster Mod連携の隠し要素) ---
+        // Missile MOD の「核弾頭(Nuclear)」着弾点からこの半径内にいるトライポッドは、倒れて消滅する。
+        // 「厳密な直撃」判定(クレーター規模)。Missile MODが未導入なら何も起きない(疎結合・リフレクション購読)。
+        public const float NuclearToppleRadius = 150f;          // 直撃とみなす水平半径(m)
+        public const float TripodToppleFallAngleDeg = 88f;      // 倒れ込む角度(度。90で真横)
+        public const float TripodToppleDurationSeconds = 1.4f;  // 倒れ込みにかける時間(秒)
+        public const float TripodToppleDwellSeconds = 2.0f;     // 倒れた後、消滅までの横たわり時間(秒)
+        public const float TripodToppleSink = 4f;               // 倒れながら地面へ沈み込む量(m。脚の接地ズレを隠す)
+
         // --- エフェクトの色(雷・レーザーは青白い発光) ---
         public static readonly Color BoltColor = new Color(0.55f, 0.8f, 1f);  // 母船の雷(青白)
         public static readonly Color BeamColor = new Color(0.6f, 0.85f, 1f);  // トライポッドのレーザー(青白)
@@ -119,8 +128,8 @@ namespace AlienInvasion.Game
         // 位置は実機でしか正確に分からないため定数化: パネル内相対座標での配置オフセット。
         // OffsetX/Y はパネル左上(0,0)を基準にした相対座標。既定は右上寄り。
         // 実機ログにパネルサイズを出力するので、ズレたらここを調整する。
-        public const float SummonButtonWidth = 128f;
-        public const float SummonButtonHeight = 32f;
+        public const float SummonButtonWidth = 46f;  // UFOアイコンボタン
+        public const float SummonButtonHeight = 36f;
         public const float SummonButtonOffsetX = 8f;    // パネル右端からの内側マージン(右寄せ計算に使用)
         public const float SummonButtonOffsetY = -40f;  // パネル上端からの相対Y(負=上にはみ出して災害アイコン列の上に置く)
         // 災害パネルが一定時間見つからない場合(例: Natural Disasters DLC無し)のフォールバックとして

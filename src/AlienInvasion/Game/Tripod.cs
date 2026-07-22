@@ -18,7 +18,20 @@ namespace AlienInvasion.Game
         private float _bobTime;
         private readonly float _bobPhase;
 
+        // --- 核直撃による転倒(倒れ→横たわり→消滅) ---
+        private bool _toppling;
+        private float _toppleElapsed;
+        private Quaternion _toppleFromRot;
+        private Quaternion _toppleToRot;
+        private Vector3 _toppleBasePos;
+
         public Vector3 Position { get; private set; }
+
+        /// <summary>核直撃を受けて転倒中(倒れ込み〜横たわり)か。true の間は歩行・ビーム発射をしない。</summary>
+        public bool Toppling { get { return _toppling; } }
+
+        /// <summary>転倒＋横たわりを終え、TripodGroup が破棄してよい状態か。</summary>
+        public bool ToppleFinished { get; private set; }
 
         public Tripod(Vector3 groundPos)
         {
@@ -54,9 +67,56 @@ namespace AlienInvasion.Game
             _dirZ = ndz;
         }
 
+        /// <summary>
+        /// 核直撃を受けて転倒を開始する。メインスレッド専用。既に転倒中/転倒済みなら何もしない。
+        /// 現在の向きから、進行方向に対して横向きの水平軸まわりに TripodToppleFallAngleDeg 度倒す。
+        /// </summary>
+        public void BeginTopple()
+        {
+            if (_toppling || ToppleFinished) return;
+            _toppling = true;
+            _toppleElapsed = 0f;
+            _toppleBasePos = Position;
+
+            if (_gameObject != null)
+            {
+                _toppleFromRot = _gameObject.transform.rotation;
+                // 進行方向 (dirX,0,dirZ) に直交する水平軸まわりに前へ倒す。
+                Vector3 axis = new Vector3(-_dirZ, 0f, _dirX);
+                if (axis.sqrMagnitude < 1e-6f) axis = Vector3.right;
+                _toppleToRot = Quaternion.AngleAxis(ModConfig.TripodToppleFallAngleDeg, axis.normalized) * _toppleFromRot;
+            }
+            ModConfig.Log("Tripod hit by nuclear strike -> toppling at " + Position);
+        }
+
+        /// <summary>転倒アニメを1フレーム進める。メインスレッド専用。</summary>
+        private void UpdateTopple(float dt)
+        {
+            _toppleElapsed += dt;
+
+            if (_gameObject != null)
+            {
+                float f = ToppleAnimation.FallFraction(_toppleElapsed, ModConfig.TripodToppleDurationSeconds);
+                _gameObject.transform.rotation = Quaternion.Slerp(_toppleFromRot, _toppleToRot, f);
+                // 倒れ込むほど少し沈めて、横倒しの脚が宙に浮くのを目立たなくする(見た目のみ)。
+                _gameObject.transform.position = _toppleBasePos + Vector3.down * (ModConfig.TripodToppleSink * f);
+            }
+
+            if (ToppleAnimation.IsFinished(_toppleElapsed, ModConfig.TripodToppleDurationSeconds, ModConfig.TripodToppleDwellSeconds))
+            {
+                ToppleFinished = true;
+            }
+        }
+
         /// <summary>移動+境界反射+水際反射+地表追従+向き+浮遊上下動。メインスレッド専用。</summary>
         public void Advance(float dt)
         {
+            // 転倒中は歩行せず、倒れ込み演出だけを進める。
+            if (_toppling)
+            {
+                UpdateTopple(dt);
+                return;
+            }
             try
             {
                 float half = ModConfig.TripodMapHalfExtent;
