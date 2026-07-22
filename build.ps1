@@ -41,11 +41,34 @@ if (Test-Path $soundsSrcDir) {
     Write-Host "警告: $soundsSrcDir が見つかりません。効果音は再生されません。"
 }
 
-# タブ内アイコン(災害パネル)。MODフォルダ直下に icon.png を配置し、ボタンがこれを使う。
+# タブ内アイコン(災害パネル)。配置時に icon.png を <=256px へ縮小する(元画像は保持・小容量・省メモリ)。
+# 縮小に失敗した場合は原寸コピーにフォールバックする。
 $iconSrc = "icon.png"
+$iconDst = Join-Path $modDir "icon.png"
 if (Test-Path $iconSrc) {
-    Copy-Item $iconSrc (Join-Path $modDir "icon.png") -Force
-    Write-Host "icon.png(タブアイコン)を配置しました"
+    $maxIcon = 256
+    try {
+        Add-Type -AssemblyName System.Drawing
+        $img = [System.Drawing.Image]::FromFile((Get-Item $iconSrc).FullName)
+        $scale = [Math]::Min($maxIcon / $img.Width, $maxIcon / $img.Height)
+        if ($scale -gt 1) { $scale = 1 }
+        $nw = [int][Math]::Max(1, [Math]::Round($img.Width * $scale))
+        $nh = [int][Math]::Max(1, [Math]::Round($img.Height * $scale))
+        $bmp = New-Object System.Drawing.Bitmap $nw, $nh
+        $g = [System.Drawing.Graphics]::FromImage($bmp)
+        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+        $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $g.Clear([System.Drawing.Color]::Transparent)
+        $g.DrawImage($img, 0, 0, $nw, $nh)
+        $g.Dispose(); $img.Dispose()
+        $bmp.Save($iconDst, [System.Drawing.Imaging.ImageFormat]::Png)
+        $bmp.Dispose()
+        Write-Host "icon.png(タブアイコン)を ${nw}x${nh} に縮小して配置しました"
+    } catch {
+        Copy-Item $iconSrc $iconDst -Force
+        Write-Host "icon.png 縮小に失敗したため原寸で配置しました: $_"
+    }
 } else {
     Write-Host "警告: $iconSrc が見つかりません。タブアイコンは手続き生成シルエットになります。"
 }
