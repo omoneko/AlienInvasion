@@ -41,36 +41,17 @@ if (Test-Path $soundsSrcDir) {
     Write-Host "警告: $soundsSrcDir が見つかりません。効果音は再生されません。"
 }
 
-# タブ内アイコン(災害パネル)。配置時に icon.png を <=256px へ縮小する(元画像は保持・小容量・省メモリ)。
-# 縮小に失敗した場合は原寸コピーにフォールバックする。
-$iconSrc = "icon.png"
+# タブ内アイコン(災害パネル)。前処理済みの透過アイコン icon_tab.png(格子背景を除去・被写体に切り抜き・512px)を配置する。
+# 無ければ原画 icon.png、それも無ければ手続き生成シルエットにフォールバックする。
 $iconDst = Join-Path $modDir "icon.png"
-if (Test-Path $iconSrc) {
-    $maxIcon = 256
-    try {
-        Add-Type -AssemblyName System.Drawing
-        $img = [System.Drawing.Image]::FromFile((Get-Item $iconSrc).FullName)
-        $scale = [Math]::Min($maxIcon / $img.Width, $maxIcon / $img.Height)
-        if ($scale -gt 1) { $scale = 1 }
-        $nw = [int][Math]::Max(1, [Math]::Round($img.Width * $scale))
-        $nh = [int][Math]::Max(1, [Math]::Round($img.Height * $scale))
-        $bmp = New-Object System.Drawing.Bitmap $nw, $nh
-        $g = [System.Drawing.Graphics]::FromImage($bmp)
-        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-        $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
-        $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-        $g.Clear([System.Drawing.Color]::Transparent)
-        $g.DrawImage($img, 0, 0, $nw, $nh)
-        $g.Dispose(); $img.Dispose()
-        $bmp.Save($iconDst, [System.Drawing.Imaging.ImageFormat]::Png)
-        $bmp.Dispose()
-        Write-Host "icon.png(タブアイコン)を ${nw}x${nh} に縮小して配置しました"
-    } catch {
-        Copy-Item $iconSrc $iconDst -Force
-        Write-Host "icon.png 縮小に失敗したため原寸で配置しました: $_"
-    }
+if (Test-Path "icon_tab.png") {
+    Copy-Item "icon_tab.png" $iconDst -Force
+    Write-Host "icon_tab.png(透過タブアイコン)を配置しました"
+} elseif (Test-Path "icon.png") {
+    Copy-Item "icon.png" $iconDst -Force
+    Write-Host "icon.png(原画)を配置しました(icon_tab.png なし)"
 } else {
-    Write-Host "警告: $iconSrc が見つかりません。タブアイコンは手続き生成シルエットになります。"
+    Write-Host "警告: アイコンが見つかりません。タブアイコンは手続き生成シルエットになります。"
 }
 
 # Workshop用プレビュー画像。Mod共有時にCSはMODフォルダ直下の PreviewImage.png を使う。
