@@ -131,5 +131,33 @@ namespace AlienInvasion.Game
                 ModConfig.LogError("InvasionManager.ResetForNewLevel error: " + e);
             }
         }
+
+        /// <summary>Task59: 他MOD（CSWarfront）からの撃退連携用API。進行中の襲来（トライポッド）が
+        /// 1つでもあればResetForNewLevelと同じクリーンアップ(ForceCleanup)で全スロットを空け、
+        /// 撃退できたことを示すtrueを返す。進行中の襲来が無ければ何もせずfalseを返す。
+        /// メインスレッド専用（GameObject破棄のため）。既存のStartInvasion/UpdateVisual/
+        /// ResetForNewLevelの挙動・シグネチャは一切変更しない。</summary>
+        public static bool Defeat()
+        {
+            if (!IsActive) return false;
+            try
+            {
+                for (int i = 0; i < _slots.Length; i++)
+                {
+                    if (_slots[i] != null)
+                    {
+                        _slots[i].ForceCleanup();
+                        _slots[i] = null;
+                    }
+                }
+                ModConfig.Log("InvasionManager.Defeat: 全トライポッドを強制撃退しました。");
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                ModConfig.LogError("InvasionManager.Defeat error: " + e);
+                return false;
+            }
+        }
     }
 }
