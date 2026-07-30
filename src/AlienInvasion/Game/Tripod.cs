@@ -193,6 +193,7 @@ namespace AlienInvasion.Game
 
                 Effects.PlayBeam(impact, head);   // head -> impact のビーム描画
                 Effects.PlayExplosion(impact);    // 着弾点で爆発
+                BeamStrikeLog.Record(Position, impact); // 他MOD向けの発射記録（CSWarfrontがユニットダメージ判定に使う）
                 return impact;
             }
             catch (System.Exception e)

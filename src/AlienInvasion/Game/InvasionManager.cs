@@ -125,6 +125,7 @@ namespace AlienInvasion.Game
                         _slots[i] = null;
                     }
                 }
+                BeamStrikeLog.ResetForNewLevel();
             }
             catch (System.Exception e)
             {
