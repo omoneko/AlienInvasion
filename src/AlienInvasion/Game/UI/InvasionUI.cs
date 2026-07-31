@@ -31,13 +31,31 @@ namespace AlienInvasion.Game.UI
             EnsureAttached();
         }
 
-        /// <summary>OnUpdate(メインスレッド)から毎フレーム呼ぶ。列再生成で消えたら貼り直す。</summary>
+        /// <summary>OnUpdate(メインスレッド)から毎フレーム呼ぶ。列再生成で消えたら貼り直す。
+        /// バグ修正（KAIJU側のユーザー報告「災害タブからアイコンが消えた」と同系）: 旧実装は
+        /// フォールバック（右上ボタン）へ一度移行すると恒久的に列への取り付けを止めていた。
+        /// 災害列の出現がSummonButtonFallbackFrames(600≈10秒)より遅れると、アイコンは災害タブへ
+        /// 二度と戻らなかった。フォールバック表示中も列への取り付けを試み続け、列が見つかり次第
+        /// フォールバックを破棄して災害タブへ移行する（GodzillaButtonと同じ修正）。</summary>
         public static void EnsureAttached()
         {
-            if (_fallback) return;
-            if (_button != null) return;
+            if (_rowFound && _button != null) return; // 災害列に取り付け済み（列再生成で消えたら再試行される）
 
-            if (TryAttachToRow()) { _rowFound = true; return; }
+            UIButton fallbackButton = _fallback ? _button : null;
+            if (TryAttachToRow())
+            {
+                _rowFound = true;
+                if (fallbackButton != null && !ReferenceEquals(fallbackButton, _button))
+                {
+                    try { Object.Destroy(fallbackButton.gameObject); }
+                    catch (System.Exception e) { ModConfig.LogError("InvasionUI: fallback cleanup error: " + e); }
+                    ModConfig.Log("UFO召喚ボタンを右上フォールバックから災害アイコン列へ移行しました");
+                }
+                _fallback = false;
+                return;
+            }
+
+            if (_button != null) return; // フォールバック表示中で、列はまだ見つからない
             if (!_rowFound && ++_waitFrames >= ModConfig.SummonButtonFallbackFrames) CreateFallbackButton();
         }
 
@@ -116,7 +134,18 @@ namespace AlienInvasion.Game.UI
             {
                 UIView view = UIView.GetAView();
                 if (view == null) { _fallback = true; return; }
-                if (view.FindUIComponent<UIButton>(ButtonName) != null) { _fallback = true; return; }
+
+                // バグ修正: 既存ボタン（前レベルの取り残し等）は_buttonへ採用して再利用する。
+                // 旧実装は_fallback=trueだけ立てて戻り、アイコンがどこにも無いのにログも出ない
+                // 「サイレント消失」になっていた（GodzillaButtonと同じ修正）。
+                UIButton stale = view.FindUIComponent<UIButton>(ButtonName);
+                if (stale != null)
+                {
+                    _button = stale;
+                    _fallback = true;
+                    ModConfig.Log("既存のUFO召喚ボタンを再利用しました(フォールバック)");
+                    return;
+                }
 
                 UIButton button = view.AddUIComponent(typeof(UIButton)) as UIButton;
                 if (button == null) { _fallback = true; return; }
