@@ -11,7 +11,11 @@
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <LangVersion>7.3</LangVersion>
     <FileAlignment>512</FileAlignment>
-    <ManagedDLLPath>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed</ManagedDLLPath>
+    <!-- Where the game's managed DLLs live. Set the CITIES_SKYLINES_MANAGED environment
+         variable, or pass -p:ManagedDLLPath=..., if your Cities: Skylines is not in the
+         default Steam location. -->
+    <ManagedDLLPath Condition="'$(ManagedDLLPath)' == ''">$(CITIES_SKYLINES_MANAGED)</ManagedDLLPath>
+    <ManagedDLLPath Condition="'$(ManagedDLLPath)' == ''">$(MSBuildProgramFiles32)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed</ManagedDLLPath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <OutputPath>bin\Release\</OutputPath>

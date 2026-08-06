@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Alien Invasion の Steam プレビュー画像を、原発Mod(NuclearMeltdown)のスタイルに寄せて生成する。
-2パネル構成: 上=UFO(母船)+大タイトル / 黄黒ハザード帯 / 下=トライポッドの市街地襲撃バナー。"""
+"""Builds the Steam preview image for Alien Invasion, styled after the NuclearMeltdown mod.
+Two panels: the mothership plus the big title on top, a yellow/black hazard band, and a
+banner of tripods attacking a city underneath."""
 import os
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-WS = r"C:\Users\omone\Desktop\G\エイリアン襲来プロジェクト\docs\workshop"
-HERO = os.path.join(WS, "cover-ufo.png")        # 上パネル: UFO母船
-BANNER = os.path.join(WS, "cover-tripods.png")  # 下パネル: トライポッド襲撃
+# This script's own directory, so it works wherever the repository is checked out.
+WS = os.path.dirname(os.path.abspath(__file__))
+HERO = os.path.join(WS, "cover-ufo.png")        # top panel: the mothership
+BANNER = os.path.join(WS, "cover-tripods.png")  # bottom panel: the tripod attack
 OUT = os.path.join(WS, "preview.png")
 
 W = H = 1024
