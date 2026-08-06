@@ -5,10 +5,12 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// トライポッド1体のGameObjectと位置/向き。母船(Mothership)と同じく、GameObject操作は
-    /// 全てメインスレッド(InvasionManager.UpdateVisual経由)から呼ぶこと。
-    /// prefab が未生成(AssetBundle無し)でも Advance/Turn による移動計算自体は継続する
-    /// (Position は GameObject の有無に関わらず更新される)。
+    /// One tripod: its GameObject, position and heading. As with the mothership, every
+    /// GameObject operation must be called from the main thread, via
+    /// InvasionManager.UpdateVisual.
+    /// The movement maths in Advance and Turn keeps running even when no prefab was created -
+    /// without the AssetBundle, say - because Position is updated whether or not a GameObject
+    /// exists.
     /// </summary>
     public class Tripod
     {
@@ -18,7 +20,7 @@ namespace AlienInvasion.Game
         private float _bobTime;
         private readonly float _bobPhase;
 
-        // --- 核直撃による転倒(倒れ→横たわり→消滅) ---
+        // --- Toppling from a direct nuclear hit: it falls, lies there, then disappears ---
         private bool _toppling;
         private float _toppleElapsed;
         private Quaternion _toppleFromRot;
@@ -27,10 +29,10 @@ namespace AlienInvasion.Game
 
         public Vector3 Position { get; private set; }
 
-        /// <summary>核直撃を受けて転倒中(倒れ込み〜横たわり)か。true の間は歩行・ビーム発射をしない。</summary>
+        /// <summary>Whether it is falling or lying there after a direct nuclear hit. While true it neither walks nor fires.</summary>
         public bool Toppling { get { return _toppling; } }
 
-        /// <summary>転倒＋横たわりを終え、TripodGroup が破棄してよい状態か。</summary>
+        /// <summary>Whether the fall and the time lying there are both over, so TripodGroup can destroy it.</summary>
         public bool ToppleFinished { get; private set; }
 
         public Tripod(Vector3 groundPos)
@@ -58,7 +60,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>方向転換。メインスレッド専用。</summary>
+        /// <summary>Changes direction. Main thread only.</summary>
         public void Turn(float angleRad)
         {
             float ndx, ndz;
@@ -68,8 +70,9 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// 核直撃を受けて転倒を開始する。メインスレッド専用。既に転倒中/転倒済みなら何もしない。
-        /// 現在の向きから、進行方向に対して横向きの水平軸まわりに TripodToppleFallAngleDeg 度倒す。
+        /// Starts the fall after a direct nuclear hit. Main thread only, and a no-op if it is
+        /// already falling or has fallen. From its current facing it topples
+        /// TripodToppleFallAngleDeg degrees about the horizontal axis across its heading.
         /// </summary>
         public void BeginTopple()
         {
@@ -81,7 +84,7 @@ namespace AlienInvasion.Game
             if (_gameObject != null)
             {
                 _toppleFromRot = _gameObject.transform.rotation;
-                // 進行方向 (dirX,0,dirZ) に直交する水平軸まわりに前へ倒す。
+                // Fall forward, about the horizontal axis perpendicular to the heading.
                 Vector3 axis = new Vector3(-_dirZ, 0f, _dirX);
                 if (axis.sqrMagnitude < 1e-6f) axis = Vector3.right;
                 _toppleToRot = Quaternion.AngleAxis(ModConfig.TripodToppleFallAngleDeg, axis.normalized) * _toppleFromRot;
@@ -89,7 +92,7 @@ namespace AlienInvasion.Game
             ModConfig.Log("Tripod hit by nuclear strike -> toppling at " + Position);
         }
 
-        /// <summary>転倒アニメを1フレーム進める。メインスレッド専用。</summary>
+        /// <summary>Advances the toppling animation by one frame. Main thread only.</summary>
         private void UpdateTopple(float dt)
         {
             _toppleElapsed += dt;
@@ -98,7 +101,8 @@ namespace AlienInvasion.Game
             {
                 float f = ToppleAnimation.FallFraction(_toppleElapsed, ModConfig.TripodToppleDurationSeconds);
                 _gameObject.transform.rotation = Quaternion.Slerp(_toppleFromRot, _toppleToRot, f);
-                // 倒れ込むほど少し沈めて、横倒しの脚が宙に浮くのを目立たなくする(見た目のみ)。
+                // Sink it a little as it falls, so the legs of a fallen tripod are less
+                // obviously hanging in the air. Visual only.
                 _gameObject.transform.position = _toppleBasePos + Vector3.down * (ModConfig.TripodToppleSink * f);
             }
 
@@ -108,10 +112,10 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>移動+境界反射+水際反射+地表追従+向き+浮遊上下動。メインスレッド専用。</summary>
+        /// <summary>Movement, reflecting off the map bounds and the water's edge, following the terrain, facing, and the hovering bob. Main thread only.</summary>
         public void Advance(float dt)
         {
-            // 転倒中は歩行せず、倒れ込み演出だけを進める。
+            // While falling it does not walk; only the toppling animation advances.
             if (_toppling)
             {
                 UpdateTopple(dt);
@@ -126,8 +130,9 @@ namespace AlienInvasion.Game
 
                 if (IsWater(nx, nz))
                 {
-                    // 水際: 次の位置が水上なら引き返す(向き反転)。今フレームは踏みとどまる。
-                    // 陸地(道路含む)は水でないため自由に通過できる。
+                    // At the water's edge: if the next position would be over water, turn
+                    // back and stay put for this frame. Land, roads included, is not water and
+                    // is crossed freely.
                     _dirX = -_dirX;
                     _dirZ = -_dirZ;
                 }
@@ -150,7 +155,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>見た目の反映(進行方向への向き＋浮遊上下動)。Positionは地表のまま(sim読取用)。</summary>
+        /// <summary>Applies the visuals: facing along the heading, plus the hovering bob. Position itself stays on the ground, which is what the simulation thread reads.</summary>
         private void UpdateTransform(float dt)
         {
             if (_gameObject == null) return;
@@ -163,16 +168,18 @@ namespace AlienInvasion.Game
             Vector3 heading = new Vector3(_dirX, 0f, _dirZ);
             if (heading.sqrMagnitude > 1e-6f)
             {
-                // モデル前方(=Blenderの-Y側)を進行方向へ。ズレはTripodYawOffsetDegで微調整。
+                // Point the model's front - Blender's -Y side - along the heading;
+                // TripodYawOffsetDeg corrects any discrepancy.
                 _gameObject.transform.rotation =
                     Quaternion.LookRotation(heading) * Quaternion.Euler(0f, ModConfig.TripodYawOffsetDeg, 0f);
             }
         }
 
         /// <summary>
-        /// 進行方向・斜め下(俯角20〜60°ランダム)へレーザーを発射する。頭から着弾点までビームを描画し、
-        /// 着弾点で爆発エフェクトを再生する。着弾点(ワールド座標)を返す(呼び出し側がsimスレッドでの
-        /// 建物破壊に用いる)。メインスレッド専用(エフェクト再生のため)。
+        /// Fires the laser forward and down, at a random depression angle between 20 and 60
+        /// degrees. The beam is drawn from the head to the impact point and an explosion plays
+        /// there. Returns the impact point in world space, which the caller uses to destroy
+        /// buildings on the simulation thread. Main thread only, because it plays effects.
         /// </summary>
         public Vector3 FireBeam()
         {
@@ -183,17 +190,18 @@ namespace AlienInvasion.Game
                 hd.Normalize();
 
                 float angleRad = Random.Range(ModConfig.BeamMinAngleDeg, ModConfig.BeamMaxAngleDeg) * Mathf.Deg2Rad;
-                // 頭(接地点からTripodHeadHeight上)から俯角angleで発射。接地までの水平距離 d = 高さ / tan(俯角)。
+                // Fired from the head, TripodHeadHeight above its footing, at the depression
+                // angle. The horizontal distance to the ground is height / tan(angle).
                 float d = ModConfig.TripodHeadHeight / Mathf.Tan(angleRad);
                 if (d > ModConfig.BeamMaxRange) d = ModConfig.BeamMaxRange;
 
                 Vector3 head = Position + Vector3.up * ModConfig.TripodHeadHeight;
                 Vector3 flat = new Vector3(Position.x + hd.x * d, 0f, Position.z + hd.z * d);
-                Vector3 impact = ClampToGround(flat); // 着弾点(前方地表)
+                Vector3 impact = ClampToGround(flat); // the impact point, on the ground ahead
 
-                Effects.PlayBeam(impact, head);   // head -> impact のビーム描画
-                Effects.PlayExplosion(impact);    // 着弾点で爆発
-                BeamStrikeLog.Record(Position, impact); // 他MOD向けの発射記録（CSWarfrontがユニットダメージ判定に使う）
+                Effects.PlayBeam(impact, head);   // draw the beam from the head to the impact
+                Effects.PlayExplosion(impact);    // explode at the impact point
+                BeamStrikeLog.Record(Position, impact); // published for other mods; CS:WARFRONT reads it to damage units
                 return impact;
             }
             catch (System.Exception e)
@@ -211,7 +219,7 @@ namespace AlienInvasion.Game
             }
             catch (System.Exception)
             {
-                return false; // 判定不能時は陸扱い(移動を止めない)
+                return false; // when it cannot be determined, treat it as land so movement is not blocked
             }
         }
 

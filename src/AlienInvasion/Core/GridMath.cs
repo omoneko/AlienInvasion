@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>NaturalResourceManager の汚染グリッド(512x512, セル33.75m)に対する座標計算。</summary>
+    /// <summary>Coordinate maths for NaturalResourceManager's pollution grid (512x512, 33.75 m cells).</summary>
     public static class GridMath
     {
         public const float CellSize = 33.75f;

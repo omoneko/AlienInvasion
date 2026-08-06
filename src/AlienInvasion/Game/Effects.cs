@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>雷ボルト・着弾閃光・雷鳴の再生。全てメインスレッド(OnUpdate)から呼ぶこと。</summary>
+    /// <summary>Plays the lightning bolts, the impact flashes and the thunder. All of it must be called from the main thread, via OnUpdate.</summary>
     public static class Effects
     {
         private const float BoltLifetime = 0.15f;
@@ -15,12 +15,14 @@ namespace AlienInvasion.Game
         private static Material _beamMaterial;
 
         /// <summary>
-        /// LineRenderer 用の発光ライン素材を、CSで実際に使えるシェーダーで生成する。
-        /// "Particles/Additive" は CS のランタイムでは除去されていて null になりがちで、その場合
-        /// マテリアルが付かず「マゼンタ(ピンク紫)」になる。そこで加算系→スプライト→Unlit の順で
-        /// 実在するシェーダーを探し、色は _TintColor / _Color / _EmissionColor / material.color の
-        /// どれが有効でも狙った色(青白)になるよう全てに設定する。全滅時のみ Standard(発光しないが
-        /// マゼンタは回避)へフォールバックする。メインスレッド専用。
+        /// Creates the glowing line material for the LineRenderer, from a shader that actually
+        /// exists in CS. "Particles/Additive" is usually stripped from the CS runtime and comes
+        /// back null, which leaves the line with no material and renders it in the magenta
+        /// error colour. So a shader is looked for in order - additive, then sprite, then unlit
+        /// - and the colour is written to _TintColor, _Color, _EmissionColor and material.color
+        /// alike, so that whichever one the shader honours produces the intended blue-white.
+        /// Only if none of them exist does it fall back to Standard, which does not glow but is
+        /// at least not magenta. Main thread only.
         /// </summary>
         private static Material CreateLineMaterial(Color tint)
         {
@@ -31,7 +33,7 @@ namespace AlienInvasion.Game
                     "Particles/Additive", "Particles/Alpha Blended", "Sprites/Default",
                     "Unlit/Transparent", "Unlit/Color");
                 if (shader == null) shader = RenderAssets.FindLoadedContaining("additive", "particle", "sprite", "unlit");
-                if (shader == null) shader = Shader.Find("Standard"); // 最後の砦(発光しないがマゼンタ回避)
+                if (shader == null) shader = Shader.Find("Standard"); // last resort: it does not glow, but it is not magenta
                 if (shader == null) return null;
 
                 var mat = new Material(shader);
@@ -99,8 +101,9 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// トライポッドのレーザービームを一瞬描画する(赤・細身)。既存 PlayLightningStrike の
-        /// LineRenderer/マテリアルキャッシュ手法を流用。メインスレッド専用(GameObject操作のため)。
+        /// Draws the tripod's laser beam for an instant, thin and coloured. It reuses the
+        /// LineRenderer and material caching that PlayLightningStrike already uses. Main thread
+        /// only, since it works with GameObjects.
         /// </summary>
         public static void PlayBeam(Vector3 groundPoint, Vector3 from)
         {
@@ -139,7 +142,7 @@ namespace AlienInvasion.Game
             Object.Destroy(go, BeamLifetime);
         }
 
-        /// <summary>着弾点で爆発(隕石着弾エフェクト)を再生する。メインスレッド専用。</summary>
+        /// <summary>Plays the explosion at the impact point. Main thread only.</summary>
         public static void PlayExplosion(Vector3 position)
         {
             try
@@ -163,8 +166,10 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// 着弾爆発に使うエフェクトを解決する。既定はゲーム標準の中規模爆発(DisasterProperties.m_mediumExplosion。
-        /// 隕石着弾より遥かに小さく着弾向き)。取得できない場合は隕石着弾エフェクトへフォールバック。
+        /// Resolves the effect used for the impact explosion. The default is the game's own
+        /// medium explosion (DisasterProperties.m_mediumExplosion), which is far smaller than
+        /// the meteor impact and suits a strike much better. If that cannot be obtained, it
+        /// falls back to the meteor impact effect.
         /// </summary>
         private static EffectInfo ResolveImpactEffect()
         {
@@ -175,7 +180,7 @@ namespace AlienInvasion.Game
             }
             catch (System.Exception)
             {
-                // フォールバックへ
+                // fall through to the fallback
             }
             return ResolveMeteorImpactEffect();
         }

@@ -3,10 +3,11 @@ using ICities;
 namespace AlienInvasion.Game.Loading
 {
     /// <summary>
-    /// レベルロード毎にUFO召喚ボタン(mod専用UI)を生成/破棄する。ゲームが自動検出する。
-    /// OnLevelUnloading で必ず DestroyButton するのは、Task 11レビューで指摘された
-    /// 「静的状態がレベルロードをまたいで残留する」問題と同種の不具合(UIコンポーネントの
-    /// リーク・複数レベルにまたがる二重ボタン)を避けるため。
+    /// Creates and destroys the summon button - this mod's own UI - on every level load. The
+    /// game discovers this class on its own.
+    /// DestroyButton always runs in OnLevelUnloading to avoid the same class of bug as static
+    /// state surviving across a level load: leaked UI components, and a second button appearing
+    /// once more than one level has been loaded.
     /// </summary>
     public class InvasionLoadingExtension : LoadingExtensionBase
     {
@@ -15,8 +16,9 @@ namespace AlienInvasion.Game.Loading
             base.OnLevelLoaded(mode);
             try
             {
-                // SetTool<T>() が起動できるよう、まずカスタム配置ツールを ToolController へ登録する。
-                // これを行わないと SetTool は辞書に無く null を返し、ボタン/F7 が空振りする。
+                // Register the custom placement tool with ToolController first, so SetTool<T>()
+                // can open it. Without this, SetTool finds nothing in the dictionary, returns
+                // null, and the button and the hotkey silently do nothing.
                 UI.ToolRegistration.Register<UI.MothershipPlacementTool>();
                 UI.InvasionUI.CreateButton();
             }

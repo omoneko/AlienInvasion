@@ -3,22 +3,25 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// 複数の襲来(UFO)を同時進行させる静的コーディネータ。最大 MaxConcurrentInvasions 個の
-    /// Invasion を固定長スロット配列で並走させる。
+    /// Static coordinator that runs several invasions at once, holding up to
+    /// MaxConcurrentInvasions of them in a fixed-length array of slots.
     ///
-    /// スレッド境界規律(既存の単一襲来版と同じ思想を配列に拡張):
-    /// - スロット配列 _slots の「書き込み(生成・除去・全消去)」は全てメインスレッドのみ(single-writer)。
-    ///   StartInvasion / UpdateVisual(完了スロットのnull化) / ResetForNewLevel は全てメインスレッド。
-    /// - UpdateSimulation(シミュレーションスレッド)は各スロット参照をローカルに退避してから読むだけ
-    ///   (参照代入はアトモ―ミック。メインが同一スロットを null 化しても、退避済み参照を使うため NRE に
-    ///   ならず、既に巻き取り済みの Invasion をもう1tick処理するだけの良性レースに収まる)。
-    /// したがってロックは不要(書き手が常にメインスレッド1本)。
+    /// Thread discipline, the single-invasion design extended to an array:
+    /// - Every write to the _slots array - creating, removing, clearing - happens on the main
+    ///   thread and nowhere else, so there is exactly one writer. StartInvasion, UpdateVisual
+    ///   (which nulls a finished slot) and ResetForNewLevel are all main thread.
+    /// - UpdateSimulation, on the simulation thread, only copies each slot reference to a local
+    ///   and reads that. Reference assignment is atomic, so even if the main thread nulls the
+    ///   same slot in between, the copied reference cannot throw a NullReferenceException; the
+    ///   worst case is processing an already finished Invasion for one more tick, which is a
+    ///   benign race.
+    /// No lock is needed, because there is only ever one writer.
     /// </summary>
     public static class InvasionManager
     {
         private static readonly Invasion[] _slots = new Invasion[ModConfig.MaxConcurrentInvasions];
 
-        /// <summary>いずれかの襲来が進行中か(ランダム発動の抑制などに使う)。</summary>
+        /// <summary>Whether any invasion is underway, used to hold back the random trigger among other things.</summary>
         public static bool IsActive
         {
             get
@@ -31,7 +34,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>現在進行中の襲来数。</summary>
+        /// <summary>How many invasions are currently underway.</summary>
         public static int ActiveCount
         {
             get
@@ -45,15 +48,16 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>まだ新しい襲来を開始できるか(上限未満か)。</summary>
+        /// <summary>Whether another invasion can start, i.e. whether it is below the cap.</summary>
         public static bool CanStartMore
         {
             get { return ActiveCount < _slots.Length; }
         }
 
         /// <summary>
-        /// メインスレッド専用。空きスロットがあれば新しい襲来を開始する。上限に達している場合は何もしない。
-        /// Mothership の生成(Object.Instantiate/transform操作)を伴うため、シミュレーションスレッドから呼ばないこと。
+        /// Main thread only. Starts a new invasion if a slot is free, and does nothing once
+        /// the cap is reached. It constructs a Mothership - Object.Instantiate plus transform
+        /// work - so it must never be called from the simulation thread.
         /// </summary>
         public static void StartInvasion(Vector3 targetPosition)
         {
@@ -69,7 +73,7 @@ namespace AlienInvasion.Game
             ModConfig.Log("Invasion request ignored: already at max concurrent (" + _slots.Length + ")");
         }
 
-        /// <summary>メインスレッド専用。全スロットの演出を1フレーム進め、完了したものをスロットから除去する。</summary>
+        /// <summary>Main thread only. Advances every slot's visuals by one frame and removes the ones that have finished.</summary>
         public static void UpdateVisual(float simTimeDelta)
         {
             for (int i = 0; i < _slots.Length; i++)
@@ -82,8 +86,9 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// いずれかの襲来でトライポッドが活動中なら、その代表位置を返す(移動音の発生源用)。
-        /// メインスレッド専用(スロットと各 Invasion/TripodGroup の状態を読むため)。
+        /// A representative position of the active tripods, if any invasion has them out, for
+        /// placing the movement sound. Main thread only, since it reads the slots and the state
+        /// of each Invasion and TripodGroup.
         /// </summary>
         public static bool TryGetAnyTripodPosition(out Vector3 pos)
         {
@@ -96,22 +101,23 @@ namespace AlienInvasion.Game
             return false;
         }
 
-        /// <summary>シミュレーションスレッド専用。各スロットの破壊/汚染書込を進める。</summary>
+        /// <summary>Simulation thread only. Advances the destruction and contamination for every slot.</summary>
         public static void UpdateSimulation()
         {
             for (int i = 0; i < _slots.Length; i++)
             {
-                Invasion inv = _slots[i]; // ローカルに退避(良性レース: 下記クラスコメント参照)
+                Invasion inv = _slots[i]; // copied to a local; see the class comment on the benign race
                 if (inv == null) continue;
                 inv.UpdateSimulation();
             }
         }
 
         /// <summary>
-        /// レベルロード時(InvasionDataExtension.OnLoadData)専用。メインスレッドで呼ばれる。
-        /// 別セーブへ切り替える際、旧レベルの静的状態が残留して新レベルへ誤作用するのを防ぐため、
-        /// 進行中の全襲来を強制破棄しスロットを空にする。フェーズ1では襲来状態はセーブに永続化されないため、
-        /// 再開ではなくリセットが正しい挙動。
+        /// Called only on level load, from InvasionDataExtension.OnLoadData, on the main
+        /// thread. Switching to a different save would otherwise leave this class's static
+        /// state behind to interfere with the new level, so every invasion in progress is
+        /// discarded and the slots are emptied. An invasion is not persisted to the save, so
+        /// resetting - rather than resuming - is the correct behaviour.
         /// </summary>
         public static void ResetForNewLevel()
         {
@@ -133,11 +139,12 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>Task59: 他MOD（CSWarfront）からの撃退連携用API。進行中の襲来（トライポッド）が
-        /// 1つでもあればResetForNewLevelと同じクリーンアップ(ForceCleanup)で全スロットを空け、
-        /// 撃退できたことを示すtrueを返す。進行中の襲来が無ければ何もせずfalseを返す。
-        /// メインスレッド専用（GameObject破棄のため）。既存のStartInvasion/UpdateVisual/
-        /// ResetForNewLevelの挙動・シグネチャは一切変更しない。</summary>
+        /// <summary>
+        /// Public API for other mods (CS:WARFRONT) to repel an invasion. If any invasion is in
+        /// progress, every slot is cleaned up exactly as ResetForNewLevel does (ForceCleanup)
+        /// and true is returned to say they were repelled; with nothing in progress it does
+        /// nothing and returns false. Main thread only, because it destroys GameObjects.
+        /// </summary>
         public static bool Defeat()
         {
             if (!IsActive) return false;
@@ -151,7 +158,7 @@ namespace AlienInvasion.Game
                         _slots[i] = null;
                     }
                 }
-                ModConfig.Log("InvasionManager.Defeat: 全トライポッドを強制撃退しました。");
+                ModConfig.Log("InvasionManager.Defeat: every tripod was repelled.");
                 return true;
             }
             catch (System.Exception e)

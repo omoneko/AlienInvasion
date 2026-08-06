@@ -2,7 +2,7 @@ using System;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>汚染ゾーンの時間経過による消滅判定（ゲーム内時刻ベース）。</summary>
+    /// <summary>Decides when a contamination zone has aged out, based on in-game time.</summary>
     public static class ExpiryClock
     {
         public static bool HasExpired(long startTicks, long nowTicks, int months)
@@ -13,9 +13,10 @@ namespace AlienInvasion.Core
         }
 
         /// <summary>
-        /// start から days 日（ゲーム内時間）が経過したか。トライポッドの活動時間など
-        /// 「実時間の秒」ではなく「ゲーム内の日数」で規定したい継続時間の判定に使う。
-        /// ゲーム速度倍率で自然に伸縮し、一時停止中は進まない(呼び出し側がゲーム時刻を渡すため)。
+        /// Whether days of in-game time have passed since start. Used for durations that
+        /// should be measured in game days rather than real seconds - how long the tripods stay
+        /// active, for instance. Such a duration stretches naturally with the game speed and
+        /// stops advancing while paused, because the caller passes in the game clock.
         /// </summary>
         public static bool HasElapsedDays(long startTicks, long nowTicks, int days)
         {

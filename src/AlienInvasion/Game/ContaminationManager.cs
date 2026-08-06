@@ -3,17 +3,18 @@ using AlienInvasion.Core;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>汚染ゾーン台帳と、グリッドへの適用/維持/除去。</summary>
+    /// <summary>The ledger of contamination zones, and applying, holding and clearing them on the grid.</summary>
     public static class ContaminationManager
     {
         private static List<ContaminationZone> _zones = new List<ContaminationZone>();
         private static readonly object _lock = new object();
 
         /// <summary>
-        /// _zones はメインスレッド(Sync読取)とシミュレーションスレッド(AddZone/RemoveZoneAt書込)の
-        /// 双方から触られるため、List&lt;T&gt;の非スレッドセーフ性への対策として _lock で保護する。
-        /// ロック範囲は _zones の読み書きのみに限定し、GridMath/PollutionField/NaturalResourceManager
-        /// 呼び出しはロック外で行う。
+        /// _zones is touched from the main thread, which reads it in Sync, and from the
+        /// simulation thread, which writes it in AddZone and RemoveZoneAt. List&lt;T&gt; is not
+        /// thread safe, so _lock guards it.
+        /// The lock covers only reading and writing _zones; the calls into GridMath,
+        /// PollutionField and NaturalResourceManager are made outside it.
         /// </summary>
         public static List<ContaminationZone> Zones
         {

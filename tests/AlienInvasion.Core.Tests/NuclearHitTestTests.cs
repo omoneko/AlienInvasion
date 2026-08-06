@@ -12,7 +12,7 @@ public class NuclearHitTestTests
     [Fact]
     public void DirectHit_within_radius_is_true()
     {
-        // (90,90) -> 距離 ~127.3 < 150
+        // (90,90) is about 127.3 away, under 150
         Assert.True(NuclearHitTest.IsDirectHit(90f, 90f, 150f));
     }
 
@@ -37,8 +37,8 @@ public class NuclearHitTestTests
     [Fact]
     public void DirectHit_negative_offsets_use_magnitude()
     {
-        Assert.True(NuclearHitTest.IsDirectHit(-100f, -100f, 150f));  // 距離 ~141.4 < 150
-        Assert.False(NuclearHitTest.IsDirectHit(-120f, -120f, 150f)); // 距離 ~169.7 > 150
+        Assert.True(NuclearHitTest.IsDirectHit(-100f, -100f, 150f));  // about 141.4 away, under 150
+        Assert.False(NuclearHitTest.IsDirectHit(-120f, -120f, 150f)); // about 169.7 away, over 150
     }
 
     [Fact]

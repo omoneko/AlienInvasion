@@ -4,16 +4,19 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// モデルの色付きマテリアル(ベースのメタリックグレー以外)を夜間に発光させる。
+    /// Makes a model's coloured materials - everything but the metallic grey base - glow at
+    /// night.
     ///
-    /// 仕組み: モデル構築時(ObjMeshBuilder)に、ベース以外のマテリアルを自身の色付きで
-    /// 発光対象として登録する。毎フレーム(メインスレッド)、現在が夜か(SimulationManager の
-    /// m_enableDayNight && m_isNightTime)に応じて発光係数を 0(昼)⇔1(夜) へ滑らかに補間し、
-    /// 各マテリアルの _EmissionColor を「登録色 × 係数 × 強度」に設定する。
+    /// How it works: while the model is built, ObjMeshBuilder registers each non-base material
+    /// along with its own colour. Every frame, on the main thread, a factor is interpolated
+    /// smoothly between 0 by day and 1 by night according to whether it is currently night
+    /// (SimulationManager's m_enableDayNight and m_isNightTime), and each material's
+    /// _EmissionColor is set to the registered colour times that factor times the intensity.
     ///
-    /// マテリアルは ModelProvider がモデル単位でキャッシュ・共有するため、登録はモデル種別ごとに
-    /// 1回だけ行われ(インスタンス数に依らない)、ここでの更新で同種の全UFO/トライポッドが一斉に光る。
-    /// GameObject/Material に触れるため全てメインスレッド専用。
+    /// ModelProvider caches and shares materials per model, so each kind of model registers
+    /// exactly once regardless of how many instances exist, and one update here lights up every
+    /// mothership or tripod of that kind at the same time.
+    /// It touches GameObjects and Materials, so all of it is main thread only.
     /// </summary>
     public static class EmissionController
     {
@@ -24,9 +27,9 @@ namespace AlienInvasion.Game
         }
 
         private static readonly List<Entry> _entries = new List<Entry>();
-        private static float _current; // 0=昼(消灯) .. 1=夜(発光)
+        private static float _current; // 0 by day (dark) .. 1 by night (glowing)
 
-        /// <summary>発光対象マテリアルを登録する(モデル構築時に1回)。メインスレッド専用。</summary>
+        /// <summary>Registers a material to glow. Called once while the model is built. Main thread only.</summary>
         public static void Register(Material mat, Color emissionColor)
         {
             if (mat == null) return;
@@ -36,7 +39,7 @@ namespace AlienInvasion.Game
                 {
                     mat.EnableKeyword("_EMISSION");
                     mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
-                    mat.SetColor("_EmissionColor", Color.black); // 初期は消灯(昼)
+                    mat.SetColor("_EmissionColor", Color.black); // starts dark, as during the day
                 }
                 _entries.Add(new Entry { Mat = mat, Color = emissionColor });
             }
@@ -46,7 +49,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>毎フレーム、昼夜に応じて発光を更新する。一時停止中も夜なら光らせたいので pause は無視。メインスレッド専用。</summary>
+        /// <summary>Updates the glow each frame from the time of day. The pause is ignored, because it should still glow at night while paused. Main thread only.</summary>
         public static void Update(float realTimeDelta)
         {
             if (_entries.Count == 0) return;

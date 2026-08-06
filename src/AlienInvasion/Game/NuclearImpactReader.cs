@@ -4,13 +4,16 @@ using System.Reflection;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// Missile Disaster Mod の核着弾ビーコン（MissileDisaster.Game.NuclearImpactBeacon）を
-    /// リフレクションで読む疎結合ブリッジ。両Modは相互にDLL参照しないため、型を AppDomain から
-    /// 名前で探し、公開契約の CurrentId プロパティと Snapshot() メソッドだけを呼ぶ。
-    /// Missile MOD が未導入なら Available=false となり、核直撃転倒の機能はまるごと無効化される。
+    /// Loosely coupled bridge that reads the Missile Disaster mod's nuclear impact beacon
+    /// (MissileDisaster.Game.NuclearImpactBeacon) by reflection. Neither mod references the
+    /// other's DLL, so the type is looked up by name in the AppDomain and only its published
+    /// contract is used: the CurrentId property and the Snapshot() method.
+    /// Without the Missile mod installed, Available is false and toppling from a direct nuclear
+    /// hit is disabled entirely.
     ///
-    /// 解決は初回アクセス時に一度だけ行う（トライポッド活動中に呼ばれる頃には全Modの
-    /// アセンブリはロード済みのため、片方向きの検出で十分）。全メソッドはメインスレッドから呼ぶ。
+    /// The lookup happens once, on first access. By the time this is called - with tripods out
+    /// and moving - every mod's assembly is loaded, so detecting it in one direction is enough.
+    /// Every method here is called on the main thread.
     /// </summary>
     public static class NuclearImpactReader
     {
@@ -22,13 +25,13 @@ namespace AlienInvasion.Game
         private static MethodInfo _snapshot;
         private static PropertyInfo _currentId;
 
-        /// <summary>Missile MOD の核着弾ビーコンが利用可能か（未導入なら false）。</summary>
+        /// <summary>Whether the Missile mod's nuclear impact beacon is available; false if that mod is not installed.</summary>
         public static bool Available
         {
             get { Resolve(); return _available; }
         }
 
-        /// <summary>直近に発行された核着弾ID（0=まだ無し／未導入）。安価な新着有無チェック用。</summary>
+        /// <summary>The most recently issued nuclear impact ID; 0 means none yet, or the mod is absent. A cheap way to check for anything new.</summary>
         public static long CurrentId()
         {
             Resolve();
@@ -46,7 +49,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>直近の核着弾を新しい順に {id, x, z} の三つ組で返す（未導入/無ければ空配列）。</summary>
+        /// <summary>The recent nuclear impacts as {id, x, z} triples, newest first. Empty when the mod is absent or nothing has landed.</summary>
         public static float[] Snapshot()
         {
             Resolve();
@@ -79,9 +82,9 @@ namespace AlienInvasion.Game
                 _available = _snapshot != null && _currentId != null;
 
                 if (_available)
-                    ModConfig.Log("Missile Disaster Mod を検出: 核直撃によるトライポッド転倒を有効化");
+                    ModConfig.Log("Missile Disaster mod detected: tripods will topple from a direct nuclear hit");
                 else
-                    ModConfig.Log("NuclearImpactBeacon は見つかったが契約メンバが不一致のため無効化");
+                    ModConfig.Log("NuclearImpactBeacon was found but its members do not match the contract, so it is disabled");
             }
             catch (Exception e)
             {
@@ -100,7 +103,7 @@ namespace AlienInvasion.Game
                     Type t = asms[i].GetType(fullName, false);
                     if (t != null) return t;
                 }
-                catch { /* 動的アセンブリ等は無視 */ }
+                catch { /* dynamic assemblies and the like - skip */ }
             }
             return null;
         }

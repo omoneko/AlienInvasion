@@ -4,15 +4,18 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// 1回の襲来イベント(UFO1体分)の全ライフサイクル。以前は静的 InvasionManager が単一の襲来を
-    /// 保持していたが、複数UFOの同時進行を可能にするためインスタンス化した。
-    /// InvasionManager が最大 MaxConcurrentInvasions 個の Invasion をスロットで並走させる。
+    /// The whole lifecycle of one invasion - one mothership. This used to be held as a single
+    /// invasion by the static InvasionManager; it became an instance so several can run at
+    /// once, and InvasionManager now keeps up to MaxConcurrentInvasions of them in slots.
     ///
-    /// スレッド境界規律:
-    /// ctor / UpdateVisual / ForceCleanup: メインスレッド専用(Mothership/TripodGroupのGameObject操作・
-    ///   フェーズタイマー・状態遷移の書き込み元)。
-    /// UpdateSimulation: シミュレーションスレッド専用(DisasterHelpers/汚染書込)。
-    /// _state は UpdateVisual(メイン)からのみ書き込み、UpdateSimulation は読むのみ(良性レース)。
+    /// Thread discipline:
+    /// The constructor, UpdateVisual and ForceCleanup are main thread only - they do the
+    ///   GameObject work for the Mothership and the TripodGroup, and they are what writes the
+    ///   phase timers and the state transitions.
+    /// UpdateSimulation is simulation thread only, doing DisasterHelpers and writing
+    ///   contamination.
+    /// _state is written only by UpdateVisual on the main thread and merely read by
+    /// UpdateSimulation, which is a benign race.
     /// </summary>
     public class Invasion
     {
@@ -21,10 +24,10 @@ namespace AlienInvasion.Game
         private readonly Vector3 _target;
         private float _phaseElapsed;
         private float _strikeTimer;
-        private bool _bombardResolved;  // Bombarding終了時の陥没/建物破壊/汚染登録が完了したか
+        private bool _bombardResolved;  // whether the sinkhole, the destruction and the contamination at the end of the bombardment have been applied
         private readonly TripodGroup _tripods = new TripodGroup();
 
-        /// <summary>メインスレッド専用。Mothership を生成し Descending から開始する。</summary>
+        /// <summary>Main thread only. Creates the Mothership and starts in the Descending state.</summary>
         public Invasion(Vector3 target)
         {
             _target = target;
@@ -33,13 +36,15 @@ namespace AlienInvasion.Game
             _phaseElapsed = 0f;
             _strikeTimer = 0f;
             _bombardResolved = false;
-            SoundManager.PlayUfoArrival(target); // UFO飛来音
+            SoundManager.PlayUfoArrival(target); // the arrival sound
         }
 
         /// <summary>
-        /// メインスレッド専用。襲来演出を1フレーム進める。戻り値 false は「完了(母船・トライポッド共に
-        /// 破棄済み)なので呼び出し側スロットから除去してよい」を意味する。simTimeDelta はゲーム速度連動の
-        /// シミュレーションデルタ(2倍/3倍速で降下・移動・回転・ビーム間隔が伸縮し、一時停止中は 0)。
+        /// Main thread only. Advances the invasion by one frame. Returning false means it has
+        /// finished - the mothership and the tripods are all destroyed - and the caller can
+        /// clear its slot. simTimeDelta is the delta that follows the game speed, so at 2x and
+        /// 3x the descent, movement, spin and beam interval all stretch to match, and it is 0
+        /// while paused.
         /// </summary>
         public bool UpdateVisual(float simTimeDelta)
         {
@@ -77,7 +82,7 @@ namespace AlienInvasion.Game
             return _state != InvasionState.Done;
         }
 
-        /// <summary>シミュレーションスレッド専用。DisasterHelpers/汚染書込はここでのみ行う。</summary>
+        /// <summary>Simulation thread only. DisasterHelpers and writing contamination happen here and nowhere else.</summary>
         public void UpdateSimulation()
         {
             try
@@ -98,7 +103,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>この襲来がトライポッド活動中なら、生存トライポッドの代表位置を返す。メインスレッド専用。</summary>
+        /// <summary>A representative position of the surviving tripods, if this invasion has them out. Main thread only.</summary>
         public bool TryGetTripodPosition(out Vector3 pos)
         {
             if (_state == InvasionState.TripodsActive)
@@ -109,7 +114,7 @@ namespace AlienInvasion.Game
             return false;
         }
 
-        /// <summary>レベル再読込等での強制破棄。メインスレッド専用。</summary>
+        /// <summary>Forced teardown, for a level reload and the like. Main thread only.</summary>
         public void ForceCleanup()
         {
             try
@@ -163,8 +168,10 @@ namespace AlienInvasion.Game
                 Effects.PlayLightningStrike(groundPoint, _ship != null ? _ship.SkyPointForBolt() : groundPoint + Vector3.up * ModConfig.MothershipHoverAltitude);
             }
 
-            // 陥没穴は Bombarding 終了時に ResolveBombardDamage(simスレッド)で1回だけ形成する
-            // (MakeCrater を毎tick呼ぶと相対掘削が累積して異常に深くなるため。ModConfig 参照)。
+            // The sinkhole is dug exactly once, by ResolveBombardDamage on the simulation
+            // thread when the bombardment ends. Calling MakeCrater every tick would accumulate,
+            // because it digs relative to the current ground, and the hole would end up
+            // absurdly deep. See ModConfig.
             if (_phaseElapsed >= ModConfig.BombardSeconds)
             {
                 _state = InvasionStateMachine.Next(_state);
@@ -173,8 +180,9 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// 爆撃後、母船をホバリング高度から滞留高度まで上昇させる。ここでは母船を破棄せず、
-        /// トライポッド活動中ずっと上空に滞留させ続ける(離脱は Departing フェーズで行う)。
+        /// After the bombardment, climbs the mothership from its hovering altitude to the
+        /// loitering altitude. It is not destroyed here: it stays overhead for as long as the
+        /// tripods are active, and only leaves during the Departing phase.
         /// </summary>
         private void UpdateAscending(float simTimeDelta)
         {
@@ -188,7 +196,7 @@ namespace AlienInvasion.Game
             }
             if (t >= 1f)
             {
-                _state = InvasionStateMachine.Next(_state); // -> TripodDeploy(母船は破棄せず滞留させ続ける)
+                _state = InvasionStateMachine.Next(_state); // to TripodDeploy; the mothership stays and loiters
                 _phaseElapsed = 0f;
             }
         }
@@ -202,8 +210,9 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// トライポッドの自由移動を進め、活動時間(TripodActiveDays 日・ゲーム内時間)を超えたら全体を消滅させて
-        /// Departing へ進める。この間、母船は滞留高度で回転しながら上空に留まり続ける。
+        /// Advances the tripods roaming freely, and once TripodActiveDays of in-game time have
+        /// passed, removes them all and moves on to Departing. Throughout, the mothership stays
+        /// overhead at the loitering altitude, spinning.
         /// </summary>
         private void UpdateTripodsActive(float simTimeDelta)
         {
@@ -222,8 +231,9 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// トライポッド消滅後、母船を滞留高度から出現高度まで上昇させ、上りきったら破棄して Done へ進める。
-        /// Done になると UpdateVisual が false を返し、InvasionManager がスロットから除去する。
+        /// Once the tripods are gone, climbs the mothership from the loitering altitude back to
+        /// the spawn altitude, then destroys it and moves on to Done. At Done, UpdateVisual
+        /// returns false and InvasionManager clears the slot.
         /// </summary>
         private void UpdateDeparting(float simTimeDelta)
         {
@@ -249,11 +259,12 @@ namespace AlienInvasion.Game
 
         private void ResolveBombardDamage()
         {
-            // 陥没穴を1回だけ形成する(バニラ災害規模5.5相当。SinkholeAI と同じ MakeCrater 呼び出し)。
+            // Dig the sinkhole exactly once, equivalent to a vanilla disaster at scale 5.5,
+            // using the same MakeCrater call SinkholeAI makes.
             DisasterHelpers.MakeCrater(new Vector2(_target.x, _target.z), ModConfig.SinkholeRadius, ModConfig.SinkholeDepth, false);
 
             int seed = (int)SimulationManager.instance.m_randomizer.Int32(1000000u);
-            // preRadius は totalRadius と同じ値にする(0だと何も破壊されないという既知の罠を回避)
+            // preRadius has to equal totalRadius; passing 0 is the known trap where nothing is destroyed
             DisasterHelpers.DestroyStuff(seed, null, _target, ModConfig.DestructionRadius, ModConfig.DestructionRadius, 0f,
                 ModConfig.DestructionRadius * 0.5f, ModConfig.DestructionRadius, ModConfig.DestructionRadius * 0.3f, ModConfig.DestructionRadius * 0.6f);
 

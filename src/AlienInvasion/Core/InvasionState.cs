@@ -1,10 +1,13 @@
 namespace AlienInvasion.Core
 {
     /// <summary>
-    /// 1回の襲来イベントの進行状態。
-    /// Idle→Descending→Bombarding→Ascending→TripodDeploy→TripodsActive→Departing→Done→Idle の一方向循環。
-    /// Ascending は爆撃後に滞留高度へ上昇するフェーズ(母船は消えずに上空で滞留する)。
-    /// Departing はトライポッド消滅後に母船が出現高度まで上昇して離脱・消滅するフェーズ。
+    /// How far one invasion has progressed. The states form a one-way cycle:
+    /// Idle, Descending, Bombarding, Ascending, TripodDeploy, TripodsActive, Departing, Done,
+    /// and back to Idle.
+    /// Ascending is the climb to the loitering altitude after the bombardment - the mothership
+    /// does not leave, it waits overhead.
+    /// Departing is the climb back to the spawn altitude once the tripods are gone, after which
+    /// the mothership leaves and disappears.
     /// </summary>
     public enum InvasionState
     {
@@ -18,7 +21,7 @@ namespace AlienInvasion.Core
         Done
     }
 
-    /// <summary>InvasionState の許可された遷移のみを通す状態機械ロジック。</summary>
+    /// <summary>State machine that permits only the legal InvasionState transitions.</summary>
     public static class InvasionStateMachine
     {
         public static bool CanTransition(InvasionState from, InvasionState to)

@@ -5,27 +5,28 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// CSのUnityランタイムで「実際に利用可能なシェーダー」を見つけるためのユーティリティ。
+    /// Utility for finding shaders that actually exist in the CS Unity runtime.
     ///
-    /// CSは参照されていないUnity組み込みシェーダー(例: "Particles/Additive" や Standardの
-    /// 透過バリアント)をビルドから除去していることが多く、Shader.Find がそれらに対して null を
-    /// 返す。すると:
-    ///   - マテリアルが付かず「マゼンタ(ピンク紫)」のエラー色で描画される(レーザー/雷)
-    ///   - 透過設定が効かず、テクスチャのアルファ(隙間)が無視されて「べた塗り」になる(赤い汚染)
-    /// といった不具合になる。
+    /// CS usually strips built-in Unity shaders it does not reference itself -
+    /// "Particles/Additive", or the transparent variants of Standard - so Shader.Find returns
+    /// null for them. That shows up as:
+    ///   - no material at all, and the object rendering in the magenta error colour, which is
+    ///     what happened to the laser and the lightning
+    ///   - transparency not working, so the texture's alpha is ignored and the result is a
+    ///     flat block of colour, which is what happened to the red contamination
     ///
-    /// そこで:
-    ///   - FindFirst: 候補シェーダー名を順に Shader.Find し、最初に見つかったものを返す
-    ///   - FindLoadedContaining: ロード済みシェーダー群を名前部分一致で拾うフォールバック
-    ///   - DumpAvailableShadersOnce: 初回に、利用可能なシェーダー名と主要候補の可否をログ出力し、
-    ///     実機で「どのシェーダーが使えるか」を正確に特定できるようにする
-    /// を提供する。全てGameObject/Shaderに触れるためメインスレッド専用。
+    /// This class works around it with:
+    ///   - FindFirst: Shader.Find over the candidate names in order, returning the first hit
+    ///   - FindLoadedContaining: a fallback that matches loaded shaders by substring
+    ///   - DumpAvailableShadersOnce: logs the available shader names and whether each main
+    ///     candidate resolved, so it is possible to establish exactly which shaders work in-game
+    /// All of it touches GameObjects and Shaders, so it is main thread only.
     /// </summary>
     public static class RenderAssets
     {
         private static bool _dumped;
 
-        /// <summary>候補名を順に Shader.Find し、最初に見つかった(非null)シェーダーを返す。全滅なら null。</summary>
+        /// <summary>Shader.Find over the candidate names in order, returning the first that exists, or null if none do.</summary>
         public static Shader FindFirst(params string[] names)
         {
             if (names == null) return null;
@@ -36,12 +37,12 @@ namespace AlienInvasion.Game
                     Shader s = Shader.Find(names[i]);
                     if (s != null) return s;
                 }
-                catch (Exception) { /* 次の候補へ */ }
+                catch (Exception) { /* try the next candidate */ }
             }
             return null;
         }
 
-        /// <summary>ロード済みシェーダーから、名前に substrsLower のいずれか(小文字)を含む最初のものを返す。</summary>
+        /// <summary>The first loaded shader whose name contains any of substrsLower, which are lowercase.</summary>
         public static Shader FindLoadedContaining(params string[] substrsLower)
         {
             try
@@ -64,7 +65,7 @@ namespace AlienInvasion.Game
             return null;
         }
 
-        /// <summary>初回のみ、利用可能なシェーダー名(関連するもの)と主要候補の Shader.Find 可否をログ出力する。</summary>
+        /// <summary>Logs the relevant available shader names, and whether Shader.Find resolved each main candidate. Runs once.</summary>
         public static void DumpAvailableShadersOnce()
         {
             if (_dumped) return;

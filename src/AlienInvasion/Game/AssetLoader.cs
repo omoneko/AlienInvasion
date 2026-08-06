@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>Mod同梱の AssetBundle から prefab をロードする。見つからない場合は静かにスキップ。</summary>
+    /// <summary>Loads prefabs from the AssetBundle shipped with the mod, and quietly skips anything it cannot find.</summary>
     public static class AssetLoader
     {
         private static AssetBundle _bundle;

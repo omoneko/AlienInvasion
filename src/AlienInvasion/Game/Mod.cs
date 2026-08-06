@@ -12,9 +12,10 @@ namespace AlienInvasion.Game
 
         public void OnEnabled()
         {
-            // Assembly.GetExecutingAssembly().Location はCSのMod読み込み環境下で
-            // 空文字等を返すことがあり Path.GetDirectoryName が例外を投げる(実際に発生した既知の不具合)。
-            // 代わりにゲーム自身が管理する PluginManager から確実な modPath を取得する。
+            // Assembly.GetExecutingAssembly().Location can come back empty the way CS loads
+            // mods, and Path.GetDirectoryName then throws - a bug that really did happen here.
+            // The mod path is taken from the game's own PluginManager instead, which is
+            // reliable.
             try
             {
                 PluginManager.PluginInfo info = Singleton<PluginManager>.instance.FindPluginInfo(Assembly.GetExecutingAssembly());
@@ -23,11 +24,11 @@ namespace AlienInvasion.Game
                     AssetLoader.Initialize(info.modPath);
                     ModelProvider.Initialize(info.modPath);
                     SoundManager.Initialize(info.modPath);
-                    UI.UfoIcon.SetModDirectory(info.modPath); // タブアイコンに icon.png を使う
+                    UI.UfoIcon.SetModDirectory(info.modPath); // so the tab icon can use icon.png
                 }
                 else
                 {
-                    ModConfig.LogError("OnEnabled: PluginManager から modPath を取得できませんでした");
+                    ModConfig.LogError("OnEnabled: could not get modPath from PluginManager");
                 }
             }
             catch (System.Exception e)

@@ -1,6 +1,6 @@
 namespace AlienInvasion.Game
 {
-    /// <summary>NaturalResourceManager の土壌汚染セルへの読み書きラッパ。</summary>
+    /// <summary>Read/write wrapper around NaturalResourceManager's ground pollution cells.</summary>
     public static class PollutionField
     {
         public static void ApplyMax(int cellIndex, byte intensity)

@@ -2,13 +2,13 @@ using System.Collections.Generic;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>OBJ から読み取った1マテリアルぶんの三角形群。</summary>
+    /// <summary>The triangles of a single material, as read from an OBJ.</summary>
     public class ObjSubmesh
     {
-        /// <summary>usemtl 名。最初の usemtl より前に現れた面は "" になる。</summary>
+        /// <summary>The usemtl name. Faces appearing before the first usemtl get "".</summary>
         public string Material;
 
-        /// <summary>0-based頂点位置インデックス。3つで1三角形（Unity巻き順）。</summary>
+        /// <summary>0-based vertex position indices; three per triangle, in Unity's winding order.</summary>
         public List<int> Triangles;
 
         public ObjSubmesh()
@@ -18,10 +18,10 @@ namespace AlienInvasion.Core
         }
     }
 
-    /// <summary>Blender書き出しOBJの解析結果（Unity非依存の中間表現）。</summary>
+    /// <summary>The parsed contents of a Blender-exported OBJ, as a Unity-independent intermediate.</summary>
     public class ObjData
     {
-        /// <summary>頂点ごとの x,y,z をフラットに並べたもの（Xは反転済み）。</summary>
+        /// <summary>Every vertex's x, y and z flattened into one list, with X already mirrored.</summary>
         public List<float> Positions;
 
         public List<ObjSubmesh> Submeshes;

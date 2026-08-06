@@ -4,20 +4,23 @@ using UnityEngine;
 namespace AlienInvasion.Game.UI
 {
     /// <summary>
-    /// バニラ災害パネル(DisastersPanel)の「災害アイコン列」(UIScrollablePanel)の中に、
-    /// UFO召喚アイコンをバニラ災害アイコンと並べて追加する。列の自動レイアウトに乗るため
-    /// 他MOD(ミサイル等)や既存アイコンと重ならず、パネルにも見切れない。
+    /// Adds the summon icon into the row of disaster icons (a UIScrollablePanel) in the vanilla
+    /// DisastersPanel, alongside the vanilla ones. Because it joins that row's automatic layout,
+    /// it cannot overlap the existing icons or another mod's - the missile mod's, say - and it
+    /// cannot end up clipped by the panel.
     ///
-    /// 注意: DisastersPanel はタブを開く度に列を再生成する(RefreshPanel)ため、追加したボタンが
-    /// 消えることがある。EnsureAttached() を毎フレーム(メインスレッド)呼び、_button が消えていたら
-    /// 貼り直す。列が見つからない環境(例: Natural Disasters DLC 未所持)は猶予後に右上フォールバック。
+    /// Note that DisastersPanel rebuilds the row every time the tab is opened (RefreshPanel),
+    /// which can take the button with it. EnsureAttached() therefore runs every frame on the
+    /// main thread and re-attaches _button if it has gone. Where the row never appears at all -
+    /// without the Natural Disasters DLC, for instance - it falls back after a grace period to
+    /// a button in the top-right corner.
     /// </summary>
     public static class InvasionUI
     {
         private const string ButtonName = "AlienInvasionSummonButton";
 
         private static UIButton _button;
-        private static Texture2D _iconTex;  // UFOアイコン
+        private static Texture2D _iconTex;  // the mothership icon
         private static bool _rowFound;
         private static bool _fallback;
         private static int _waitFrames;
@@ -31,15 +34,19 @@ namespace AlienInvasion.Game.UI
             EnsureAttached();
         }
 
-        /// <summary>OnUpdate(メインスレッド)から毎フレーム呼ぶ。列再生成で消えたら貼り直す。
-        /// バグ修正（KAIJU側のユーザー報告「災害タブからアイコンが消えた」と同系）: 旧実装は
-        /// フォールバック（右上ボタン）へ一度移行すると恒久的に列への取り付けを止めていた。
-        /// 災害列の出現がSummonButtonFallbackFrames(600≈10秒)より遅れると、アイコンは災害タブへ
-        /// 二度と戻らなかった。フォールバック表示中も列への取り付けを試み続け、列が見つかり次第
-        /// フォールバックを破棄して災害タブへ移行する（GodzillaButtonと同じ修正）。</summary>
+        /// <summary>
+        /// Call every frame from OnUpdate on the main thread; re-attaches the icon whenever the
+        /// row is rebuilt.
+        /// This also fixes the same bug reported against KAIJU, where the icon vanished from the
+        /// disasters tab. The old code stopped trying the row for good as soon as it fell back
+        /// to the top-right button, so if the row appeared later than
+        /// SummonButtonFallbackFrames, the icon never came back. It now keeps trying the row
+        /// even while the fallback is showing, and moves to the disasters tab - discarding the
+        /// fallback - the moment the row exists.
+        /// </summary>
         public static void EnsureAttached()
         {
-            if (_rowFound && _button != null) return; // 災害列に取り付け済み（列再生成で消えたら再試行される）
+            if (_rowFound && _button != null) return; // already in the row; a rebuild clears this and it retries
 
             UIButton fallbackButton = _fallback ? _button : null;
             if (TryAttachToRow())
@@ -49,13 +56,13 @@ namespace AlienInvasion.Game.UI
                 {
                     try { Object.Destroy(fallbackButton.gameObject); }
                     catch (System.Exception e) { ModConfig.LogError("InvasionUI: fallback cleanup error: " + e); }
-                    ModConfig.Log("UFO召喚ボタンを右上フォールバックから災害アイコン列へ移行しました");
+                    ModConfig.Log("moved the summon button from the top-right fallback into the disaster icon row");
                 }
                 _fallback = false;
                 return;
             }
 
-            if (_button != null) return; // フォールバック表示中で、列はまだ見つからない
+            if (_button != null) return; // the fallback is showing and the row is still not there
             if (!_rowFound && ++_waitFrames >= ModConfig.SummonButtonFallbackFrames) CreateFallbackButton();
         }
 
@@ -74,7 +81,7 @@ namespace AlienInvasion.Game.UI
                 UIButton button = row.AddUIComponent<UIButton>();
                 StyleTile(button, row);
                 _button = button;
-                ModConfig.Log("UFOアイコンを災害アイコン列に追加しました");
+                ModConfig.Log("added the mothership icon to the disaster icon row");
                 return true;
             }
             catch (System.Exception e)
@@ -135,15 +142,16 @@ namespace AlienInvasion.Game.UI
                 UIView view = UIView.GetAView();
                 if (view == null) { _fallback = true; return; }
 
-                // バグ修正: 既存ボタン（前レベルの取り残し等）は_buttonへ採用して再利用する。
-                // 旧実装は_fallback=trueだけ立てて戻り、アイコンがどこにも無いのにログも出ない
-                // 「サイレント消失」になっていた（GodzillaButtonと同じ修正）。
+                // Part of the same fix: an existing button - left over from a previous level,
+                // say - is adopted into _button and reused. The old code merely set
+                // _fallback=true and returned, after which the icon was nowhere to be seen and
+                // nothing was logged.
                 UIButton stale = view.FindUIComponent<UIButton>(ButtonName);
                 if (stale != null)
                 {
                     _button = stale;
                     _fallback = true;
-                    ModConfig.Log("既存のUFO召喚ボタンを再利用しました(フォールバック)");
+                    ModConfig.Log("reused the existing summon button (fallback)");
                     return;
                 }
 
@@ -153,7 +161,7 @@ namespace AlienInvasion.Game.UI
                 button.relativePosition = FindTopRightSlot(view, button);
                 _button = button;
                 _fallback = true;
-                ModConfig.Log("災害列が見つからないため、UFO召喚ボタンを画面右上に生成しました(フォールバック)");
+                ModConfig.Log("the disaster row was not found, so the summon button was created in the top-right corner (fallback)");
             }
             catch (System.Exception e)
             {
@@ -244,7 +252,8 @@ namespace AlienInvasion.Game.UI
         {
             try
             {
-                // 災害列のクリック処理にバニラ災害を選ばせない：イベント消費＋選択解除してから母船設置ツールを起動。
+                // Stop the click from also selecting a vanilla disaster in the row: consume the
+                // event and clear the selection before opening the placement tool.
                 try { if (eventParam != null) eventParam.Use(); } catch { }
                 ClearDisasterSelection();
                 ToolsModifierControl.SetTool<MothershipPlacementTool>();
@@ -255,7 +264,7 @@ namespace AlienInvasion.Game.UI
             }
         }
 
-        /// <summary>災害パネルの選択(ハイライト/武装)を解除する。</summary>
+        /// <summary>Clears the disasters panel's selection, both the highlight and the armed state.</summary>
         private static void ClearDisasterSelection()
         {
             try

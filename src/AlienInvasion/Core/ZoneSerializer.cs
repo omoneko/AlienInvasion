@@ -3,7 +3,7 @@ using System.IO;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>汚染ゾーン台帳を byte[] に直列化/復元（セーブデータ保存用）。</summary>
+    /// <summary>Serialises the contamination zone ledger to and from byte[] for the save game.</summary>
     public static class ZoneSerializer
     {
         public const byte Version = 1;

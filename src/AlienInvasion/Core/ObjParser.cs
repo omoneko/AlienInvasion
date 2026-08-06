@@ -5,9 +5,10 @@ using System.Globalization;
 namespace AlienInvasion.Core
 {
     /// <summary>
-    /// Blender書き出しOBJテキストを解析する純粋パーサ（UnityEngine非依存）。
-    /// OBJは右手座標系・Unityは左手座標系のため、X座標の反転と三角形の巻き順反転を
-    /// セットで行うことで、モデルが裏返らずに正しく描画されるようにしている。
+    /// Pure parser for Blender-exported OBJ text (no UnityEngine dependency).
+    /// OBJ is right-handed and Unity is left-handed, so the X coordinate is mirrored and the
+    /// triangle winding is reversed together - doing both keeps the model from turning inside
+    /// out and renders it correctly.
     /// </summary>
     public static class ObjParser
     {

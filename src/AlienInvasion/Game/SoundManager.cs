@@ -4,8 +4,9 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// 効果音の初期化・再生の単一窓口。Mod.OnEnabled から Initialize を呼ぶ。
-    /// 実体のロード/再生は SoundLoaderBehaviour(常駐GameObject)が担う。メインスレッド専用。
+    /// Single entry point for loading and playing the sounds; Mod.OnEnabled calls Initialize.
+    /// The actual loading and playback is done by SoundLoaderBehaviour, on a long-lived
+    /// GameObject. Main thread only.
     /// </summary>
     public static class SoundManager
     {
@@ -30,16 +31,17 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>UFO飛来(襲来開始)時。告知向きに2Dで1回再生。</summary>
+        /// <summary>Played once when the mothership arrives. It is 2D, so it reads as an announcement.</summary>
         public static void PlayUfoArrival(Vector3 pos)
         {
             if (_behaviour != null) _behaviour.PlayUfoArrival();
         }
 
         /// <summary>
-        /// トライポッド移動音を毎フレーム駆動する(メインスレッド専用)。単一の常設AudioSourceで再生するため
-        /// 重ならず、一時停止中は再生も止まる。hasTripod=活動中トライポッドの有無、pos=代表位置、
-        /// paused=ゲーム一時停止中か、dt=実時間デルタ。
+        /// Drives the tripod movement sound every frame (main thread only). A single long-lived
+        /// AudioSource plays it, so it never overlaps, and it stops while the game is paused.
+        /// hasTripod says whether any tripods are active, pos is a representative position,
+        /// paused is whether the game is paused, and dt is the real-time delta.
         /// </summary>
         public static void UpdateTripodAmbience(bool hasTripod, Vector3 pos, bool paused, float dt)
         {

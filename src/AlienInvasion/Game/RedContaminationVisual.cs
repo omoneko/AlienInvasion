@@ -6,8 +6,9 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// 汚染ゾーンに対応する赤いデカールGameObjectを配置/撤去する。
-    /// GameObjectを直接操作するため、必ずメインスレッド(OnUpdate)から呼ぶこと。
+    /// Places and removes the red decal GameObject that goes with each contamination zone.
+    /// It works with GameObjects directly, so it must always be called from the main thread,
+    /// via OnUpdate.
     /// </summary>
     public static class RedContaminationVisual
     {
@@ -59,9 +60,12 @@ namespace AlienInvasion.Game
 
             float y = Singleton<TerrainManager>.instance.SampleDetailHeight(new Vector3(zone.CenterX, 0f, zone.CenterZ));
             instance.transform.position = new Vector3(zone.CenterX, y + ModConfig.RedDecalYOffset, zone.CenterZ);
-            // デカールは Euler(90,0,0) で地面(XZ平面)に寝ている。回転後は local X→world X, local Y→world Z。
-            // よって面的に地面を覆うには (直径, 直径, 厚み) = (Radius*2, Radius*2, 1) とする。
-            // 以前は (Radius*2, 1, Radius*2) で local Y=world Z が 1m のままとなり「細い赤い棒」になっていた。
+            // The decal is laid flat on the ground with Euler(90,0,0), so after that rotation
+            // its local X maps to world X and its local Y maps to world Z. Covering the ground
+            // therefore means a scale of (diameter, diameter, thickness), i.e.
+            // (Radius*2, Radius*2, 1).
+            // It used to be (Radius*2, 1, Radius*2), which left local Y - world Z - at 1 m and
+            // drew a thin red bar instead.
             instance.transform.localScale = new Vector3(zone.Radius * 2f, zone.Radius * 2f, 1f);
             return instance;
         }

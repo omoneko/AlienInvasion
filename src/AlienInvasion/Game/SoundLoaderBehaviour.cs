@@ -5,15 +5,17 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// Mod配置フォルダ/Sounds/*.wav を実行時にロードし再生する MonoBehaviour。
-    /// WWW によるロードは1フレーム待ちが必要なためコルーチンで行う(SoundManager が生成・保持)。
-    /// CSのUnity 5.6は実行時mp3デコード非対応(AudioType.MPEGがnull)のため、WAV(PCM)を読み込む。
+    /// MonoBehaviour that loads and plays Sounds/*.wav from the mod folder at runtime.
+    /// Loading through WWW needs a frame to complete, so it runs as a coroutine; SoundManager
+    /// creates and holds this behaviour. CS runs Unity 5.6, which cannot decode mp3 at runtime
+    /// - AudioType.MPEG simply yields null - so these are WAV (PCM).
     ///
-    /// UFO飛来音: 使い捨ての2D AudioSourceで1回再生。
-    /// トライポッド移動音: 単一の常設AudioSource(_tripodSource)で管理する。これにより
-    ///   - 重ならない(前の再生が終わるまで次を鳴らさない)
-    ///   - ゲーム一時停止中は Pause/UnPause で再生も止まる
-    /// を満たす。再生は AudioSource を用いるため全てメインスレッド専用。
+    /// The arrival sound gets a throwaway 2D AudioSource and plays once.
+    /// The tripod movement sound is managed through a single long-lived AudioSource
+    /// (_tripodSource), which gives us two things:
+    ///   - it never overlaps, since the next one waits for the previous to finish
+    ///   - Pause and UnPause stop it with the game
+    /// Playback uses AudioSource, so all of this is main thread only.
     /// </summary>
     public class SoundLoaderBehaviour : MonoBehaviour
     {
@@ -21,7 +23,7 @@ namespace AlienInvasion.Game
         private AudioClip _tripod;
         private string _dir;
 
-        // トライポッド移動音の常設ソース(重ねない・一時停止対応)
+        // The long-lived source for the tripod movement sound: never overlapping, and pausable
         private AudioSource _tripodSource;
         private float _tripodTimer;
         private bool _tripodPausedMidClip;
@@ -44,7 +46,7 @@ namespace AlienInvasion.Game
             string path = Path.Combine(_dir, fileName);
             if (!File.Exists(path))
             {
-                ModConfig.LogError("SoundLoader: ファイルが見つかりません " + path);
+                ModConfig.LogError("SoundLoader: file not found " + path);
                 yield break;
             }
 
@@ -55,14 +57,14 @@ namespace AlienInvasion.Game
 
                 if (!string.IsNullOrEmpty(www.error))
                 {
-                    ModConfig.LogError("SoundLoader: WWWエラー " + fileName + " : " + www.error);
+                    ModConfig.LogError("SoundLoader: WWW error " + fileName + " : " + www.error);
                     yield break;
                 }
 
                 AudioClip clip = www.GetAudioClip(false, false, AudioType.WAV);
                 if (clip == null)
                 {
-                    ModConfig.LogError("SoundLoader: GetAudioClip が null " + fileName);
+                    ModConfig.LogError("SoundLoader: GetAudioClip returned null " + fileName);
                     yield break;
                 }
 
@@ -75,16 +77,16 @@ namespace AlienInvasion.Game
 
                 if (clip.loadState != AudioDataLoadState.Loaded)
                 {
-                    ModConfig.LogError("SoundLoader: ロード未完了 " + fileName + " state=" + clip.loadState);
+                    ModConfig.LogError("SoundLoader: not loaded " + fileName + " state=" + clip.loadState);
                     yield break;
                 }
 
                 assign(clip);
-                ModConfig.Log("SoundLoader: ロード完了 " + fileName + " (" + clip.length.ToString("0.0") + "s)");
+                ModConfig.Log("SoundLoader: loaded " + fileName + " (" + clip.length.ToString("0.0") + "s)");
             }
         }
 
-        /// <summary>UFO飛来音を2D(常に一定音量)で1回再生する。メインスレッド専用。</summary>
+        /// <summary>Plays the arrival sound once in 2D, at a constant volume. Main thread only.</summary>
         public void PlayUfoArrival()
         {
             if (_ufo == null) return;
@@ -105,8 +107,9 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// トライポッド移動音を毎フレーム駆動する。常設の単一ソースで再生するため重ならず、
-        /// 一時停止中は再生も止まる(タイマーも進めない)。メインスレッド専用。
+        /// Drives the tripod movement sound every frame. One long-lived source plays it, so it
+        /// never overlaps, and while the game is paused both the playback and the timer stop.
+        /// Main thread only.
         /// </summary>
         public void UpdateTripodAmbience(bool hasTripod, Vector3 pos, bool paused, float dt)
         {
@@ -116,22 +119,22 @@ namespace AlienInvasion.Game
             {
                 if (paused)
                 {
-                    // 時間停止中: 再生中なら一時停止し、タイマーも進めない
+                    // While paused: pause anything playing and leave the timer alone.
                     if (_tripodSource.isPlaying) { _tripodSource.Pause(); _tripodPausedMidClip = true; }
                     return;
                 }
 
-                // 停止解除: 一時停止していたクリップを再開
+                // On resuming: continue the clip that was paused.
                 if (_tripodPausedMidClip) { _tripodSource.UnPause(); _tripodPausedMidClip = false; }
 
                 if (!hasTripod)
                 {
                     if (_tripodSource.isPlaying) _tripodSource.Stop();
-                    _tripodTimer = ModConfig.TripodStepIntervalSeconds; // 次の出現時に即発火できるよう満たしておく
+                    _tripodTimer = ModConfig.TripodStepIntervalSeconds; // left full so the next appearance fires at once
                     return;
                 }
 
-                _tripodSource.transform.position = pos; // 代表トライポッドに追従(3D)
+                _tripodSource.transform.position = pos; // follows the representative tripod, in 3D
 
                 _tripodTimer += dt;
                 if (_tripodTimer >= ModConfig.TripodStepIntervalSeconds)
@@ -144,7 +147,8 @@ namespace AlienInvasion.Game
                     }
                     else
                     {
-                        // まだ前回再生中(重ねない): 終わるまで待ち、終わり次第すぐ鳴らせるよう上限で保持
+                        // The previous one is still playing and they must not overlap, so wait
+                        // for it and hold the timer at its maximum to fire the moment it ends.
                         _tripodTimer = ModConfig.TripodStepIntervalSeconds;
                     }
                 }

@@ -2,10 +2,10 @@ using System;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>トライポッド歩行に使う純粋な数学関数（Unity非依存）。</summary>
+    /// <summary>Pure maths for walking the tripods (no Unity dependency).</summary>
     public static class TripodWalk
     {
-        /// <summary>2D単位方向 (dx,dz) を angleRad だけ回転する。</summary>
+        /// <summary>Rotates the 2D unit direction (dx, dz) by angleRad.</summary>
         public static void Rotate(float dx, float dz, float angleRad, out float ndx, out float ndz)
         {
             float cos = (float)Math.Cos(angleRad);
@@ -14,7 +14,7 @@ namespace AlienInvasion.Core
             ndz = dx * sin + dz * cos;
         }
 
-        /// <summary>1軸の境界反射。範囲 [-half, half] を超えたら位置をクランプし方向を内向きに反転する。</summary>
+        /// <summary>Reflects off the bounds on one axis: past [-half, half] the position is clamped and the direction flipped inwards.</summary>
         public static void BounceAxis(float pos, float dir, float half, out float newPos, out float newDir)
         {
             if (pos > half)
@@ -34,7 +34,7 @@ namespace AlienInvasion.Core
             }
         }
 
-        /// <summary>1軸方向成分に沿って速度*経過時間ぶん前進した位置を返す。</summary>
+        /// <summary>Advances one axis by speed times the elapsed time.</summary>
         public static float StepComponent(float pos, float dirComponent, float speed, float dt)
         {
             return pos + dirComponent * speed * dt;

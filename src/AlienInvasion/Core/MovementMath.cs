@@ -1,6 +1,6 @@
 namespace AlienInvasion.Core
 {
-    /// <summary>母船/演出の座標補間に使う純粋な数学関数。</summary>
+    /// <summary>Pure maths for interpolating the positions of the mothership and the set pieces.</summary>
     public static class MovementMath
     {
         public static float EaseInOut(float t)

@@ -5,31 +5,35 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// トライポッドのレーザー発射記録。他MOD（CSWarfront等）がリフレクションで読むための公開API。
-    /// GodzillaDisasterのRayStrikeLogと同じ「単調増加ID + float[]スナップショット」パターン。
+    /// A log of the tripods' laser shots, published for other mods (CS:WARFRONT among them) to
+    /// read by reflection. It uses the same "monotonic ID plus a float[] snapshot" pattern as
+    /// GodzillaDisaster's RayStrikeLog.
     ///
-    /// レコード形式: 新しい順に {id, startX, startZ, endX, endZ} の5要素×N件。
-    /// startはトライポッドの接地点、endは着弾点（どちらもワールドX/Z）。idはプロセス中単調増加
-    /// （レベル再読込でもリセットしない＝読む側は「既読ID以下は無視」するだけで済む）。
+    /// Record format: N records of five elements, {id, startX, startZ, endX, endZ}, newest
+    /// first. start is where the tripod stands and end is the impact point, both as world X and
+    /// Z. The ID rises monotonically for the life of the process and is never reset, not even
+    /// on reloading a level, so a reader only has to ignore anything at or below the last ID it
+    /// saw.
     ///
-    /// スレッド注記: RecordはTripod.FireBeam（メインスレッド）から、CurrentId/Snapshotは
-    /// 他MODのsimスレッドから呼ばれうるため、全公開メンバをロックで保護する。
+    /// Threading: Record is called from Tripod.FireBeam on the main thread, while CurrentId and
+    /// Snapshot may be called from another mod's simulation thread, so every public member is
+    /// lock-protected.
     /// </summary>
     public static class BeamStrikeLog
     {
-        private const int MaxKept = 16; // トライポッドは複数体が一定間隔で撃つため、ゴジラより多めに保持
+        private const int MaxKept = 16; // more than the kaiju keeps, since several tripods fire at regular intervals
 
         private static readonly object _lock = new object();
-        private static readonly List<float[]> _strikes = new List<float[]>(); // 新しい順
+        private static readonly List<float[]> _strikes = new List<float[]>(); // newest first
         private static long _currentId;
 
-        /// <summary>最新の発射ID。0は「まだ一度も発射していない」。</summary>
+        /// <summary>The latest shot ID; 0 means nothing has fired yet.</summary>
         public static long CurrentId()
         {
             lock (_lock) { return _currentId; }
         }
 
-        /// <summary>発射記録のスナップショット。新しい順に {id, startX, startZ, endX, endZ} ×N。</summary>
+        /// <summary>A snapshot of the log: N records of {id, startX, startZ, endX, endZ}, newest first.</summary>
         public static float[] Snapshot()
         {
             lock (_lock)
@@ -41,7 +45,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>レーザー発射を記録する（Tripod.FireBeamから呼ぶ。メインスレッド）。</summary>
+        /// <summary>Records a laser shot. Called from Tripod.FireBeam on the main thread.</summary>
         public static void Record(Vector3 from, Vector3 to)
         {
             lock (_lock)
@@ -52,7 +56,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>レベルロード時（InvasionManager.ResetForNewLevel）。記録は消すがIDは進めたままにする。</summary>
+        /// <summary>Called on level load from InvasionManager.ResetForNewLevel. The records are cleared but the ID is left where it is.</summary>
         public static void ResetForNewLevel()
         {
             lock (_lock) { _strikes.Clear(); }

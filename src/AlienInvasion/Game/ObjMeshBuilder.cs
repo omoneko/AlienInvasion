@@ -6,9 +6,10 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// AlienInvasion.Core が解析した ObjData/MtlColor から、実行時に Unity の Mesh/Material を
-    /// 構築する。Mesh/Material/Shader の生成は Unity のメインスレッドでのみ許可されるため、
-    /// このクラスの呼び出しは必ずメインスレッド(GameObjectを生成する箇所と同じスレッド)から行うこと。
+    /// Builds Unity Meshes and Materials at runtime from the ObjData and MtlColor that
+    /// AlienInvasion.Core parsed. Unity only allows Meshes, Materials and Shaders to be created
+    /// on the main thread, so this class must always be called from there - the same thread
+    /// that creates the GameObjects.
     /// </summary>
     public static class ObjMeshBuilder
     {
@@ -62,8 +63,10 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>破損/範囲外インデックスの三角形を除去する。Unity の SetTriangles は範囲外
-        /// インデックスがあると例外を投げるため、必ずこのフィルタを通してから渡す。</summary>
+        /// <summary>
+        /// Drops triangles with damaged or out-of-range indices. Unity's SetTriangles throws on
+        /// an out-of-range index, so everything must go through this filter first.
+        /// </summary>
         private static List<int> FilterValidTriangles(List<int> triangles, int vertexCount)
         {
             if (triangles == null || triangles.Count == 0) return new List<int>();
@@ -114,7 +117,8 @@ namespace AlienInvasion.Game
                     ApplyTransparency(mat, a);
                 }
 
-                // ベース(メタリックグレー)以外の色付きマテリアルは、夜間に自身の色で発光させる対象として登録する。
+                // Every coloured material except the metallic grey base is registered to glow
+                // in its own colour at night.
                 bool isBase = string.IsNullOrEmpty(materialName) || materialName == ModConfig.BaseMaterialName;
                 if (!isBase)
                 {
@@ -146,8 +150,10 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>Standardシェーダのマテリアルを半透明(Transparent)モードに設定する。
-        /// 手続き生成デカール等、他クラスからも再利用できるよう public にしてある。</summary>
+        /// <summary>
+        /// Switches a Standard shader material into its Transparent mode. It is public so other
+        /// classes - the procedurally generated decal, for one - can reuse it.
+        /// </summary>
         public static void ApplyTransparency(Material mat, float alpha)
         {
             if (mat == null) return;

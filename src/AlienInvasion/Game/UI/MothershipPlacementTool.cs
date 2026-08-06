@@ -4,15 +4,17 @@ using UnityEngine;
 namespace AlienInvasion.Game.UI
 {
     /// <summary>
-    /// UFO召喚の手動配置ツール。他の災害(Meteor/Tornado等)と同じ「狙って左クリックで確定」の
-    /// 操作感を提供する ToolBase 派生。地形へのレイキャストとオーバーレイ描画は本物の
-    /// DisasterTool と同じパターンを踏襲している。
+    /// The tool for placing an invasion by hand. It derives from ToolBase to give the same
+    /// feel as the other disasters - meteors, tornadoes and so on - where you aim and left
+    /// click to confirm. The raycast against the terrain and the overlay drawing follow the
+    /// same pattern the real DisasterTool uses.
     ///
-    /// スレッド境界: ToolBase のライフサイクル(OnEnable/OnDisable/OnToolLateUpdate/SimulationStep/
-    /// RenderOverlay/OnToolGUI)はいずれもUnityのメイン/レンダースレッドから呼ばれる
-    /// (シミュレーションスレッドの ThreadingExtensionBase.OnBeforeSimulationTick/OnAfterSimulationTick とは別)。
-    /// そのためここから直接 InvasionManager.StartInvasion を呼んでも Task 11 の
-    /// メインスレッド専用契約に違反しない。
+    /// Threading: every part of a ToolBase lifecycle - OnEnable, OnDisable, OnToolLateUpdate,
+    /// SimulationStep, RenderOverlay and OnToolGUI - is called from Unity's main/render thread,
+    /// which is not the simulation thread that drives
+    /// ThreadingExtensionBase.OnBeforeSimulationTick and OnAfterSimulationTick. Calling
+    /// InvasionManager.StartInvasion directly from here therefore honours its main-thread-only
+    /// contract.
     /// </summary>
     public class MothershipPlacementTool : ToolBase
     {
@@ -96,7 +98,8 @@ namespace AlienInvasion.Game.UI
             }
             finally
             {
-                // ワンショット: 1回クリックしたら配置終了、通常のカメラ/選択モードへ戻す。
+                // One shot: a single click places it and returns to the normal camera and
+                // selection mode.
                 ToolsModifierControl.SetTool<DefaultTool>();
             }
         }

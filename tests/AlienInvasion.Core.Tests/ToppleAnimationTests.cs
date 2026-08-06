@@ -24,7 +24,7 @@ public class ToppleAnimationTests
     [Fact]
     public void FallFraction_is_ease_in_quadratic_at_midpoint()
     {
-        // 半分の時間では t=0.5 -> t^2 = 0.25 (倒れ始めゆっくり)。
+        // Halfway through, t=0.5 and t squared is 0.25 - it starts slowly.
         Assert.Equal(0.25f, ToppleAnimation.FallFraction(0.7f, 1.4f), 4);
     }
 
@@ -49,7 +49,7 @@ public class ToppleAnimationTests
     [Fact]
     public void IsFinished_false_during_dwell()
     {
-        // 倒れ終わった(1.4)が、横たわり(2.0)の途中(合計3.4未満)。
+        // The fall (1.4) is over but it is still lying there (2.0), so under 3.4 in total.
         Assert.False(ToppleAnimation.IsFinished(3.0f, 1.4f, 2.0f));
     }
 

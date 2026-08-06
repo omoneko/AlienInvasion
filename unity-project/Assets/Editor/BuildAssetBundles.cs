@@ -2,10 +2,11 @@ using UnityEditor;
 using UnityEngine;
 using System.IO;
 
-// Alien Invasion 用 AssetBundle をヘッドレス(batchmode)で生成するエディタスクリプト。
-// Unity 5.6 の GUI はオンラインライセンス認証でハングするため、GUIを開かず
+// Editor script that builds the Alien Invasion AssetBundle headlessly, in batchmode.
+// The Unity 5.6 GUI hangs on online licence activation, so this never opens it and runs
 //   Unity.exe -batchmode -nographics -projectPath <proj> -executeMethod BuildAssetBundles.BuildHeadless -quit
-// で実行する。FBXへのバンドル名割当・赤デカールprefab生成・ビルドまでを一括で行う。
+// from the command line instead. It assigns the bundle name to the FBX files, creates the
+// red decal prefab and builds the bundle, all in one go.
 public static class BuildAssetBundles
 {
     private const string BundleName = "alieninvasion.bundle";
@@ -15,32 +16,34 @@ public static class BuildAssetBundles
     private const string TripodFbx = "Assets/Models/Tripod.fbx";
     private const string DecalPrefab = "Assets/Models/ContaminationDecal.prefab";
 
-    // メニューからの手動実行用(GUIが使える場合)。
+    // For running by hand from the menu, where the GUI does work.
     [MenuItem("AlienInvasion/Build AssetBundle")]
     public static void Build()
     {
         BuildHeadless();
     }
 
-    // batchmode / -executeMethod から呼ぶ本体。
+    // The entry point called from batchmode with -executeMethod.
     public static void BuildHeadless()
     {
         Debug.Log("[AI-Build] start");
 
         AssetDatabase.Refresh();
 
-        // 1) FBX にバンドル名を割り当てる(プレハブ名 = ファイル名 Mothership / Tripod)。
+        // 1) Assign the bundle name to the FBX files; the prefab name is the file name,
+        //    Mothership or Tripod.
         AssignBundle(MothershipFbx);
         AssignBundle(TripodFbx);
 
-        // 2) 赤い汚染デカール prefab を生成(FBX不要。地面に寝かせた赤い半透明Quad)。
+        // 2) Create the red contamination decal prefab. No FBX is needed: it is a translucent
+        //    red quad laid flat on the ground.
         CreateDecalPrefab();
         AssignBundle(DecalPrefab);
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        // 3) バンドルをビルド。
+        // 3) Build the bundle.
         if (!Directory.Exists(OutDir)) Directory.CreateDirectory(OutDir);
         BuildPipeline.BuildAssetBundles(OutDir, BuildAssetBundleOptions.None, BuildTarget.StandaloneWindows64);
 
@@ -63,17 +66,18 @@ public static class BuildAssetBundles
 
     private static void CreateDecalPrefab()
     {
-        if (File.Exists(DecalPrefab)) return; // 既存なら再利用
+        if (File.Exists(DecalPrefab)) return; // reuse it if it already exists
 
         GameObject go = GameObject.CreatePrimitive(PrimitiveType.Quad);
         go.name = "ContaminationDecal";
-        // Quad は既定でXY平面。地面(XZ平面)に寝かせるためX軸+90度回転。
+        // A quad lies in the XY plane by default, so it is rotated +90 degrees about X to lie
+        // flat on the ground, in the XZ plane.
         go.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        // 当たり判定は不要。
+        // No collider is needed.
         Collider col = go.GetComponent<Collider>();
         if (col != null) Object.DestroyImmediate(col);
 
-        // 赤い半透明マテリアル(Standard, Transparent)。
+        // A translucent red material, Standard in its Transparent mode.
         Material mat = new Material(Shader.Find("Standard"));
         mat.SetFloat("_Mode", 3); // Transparent
         mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);

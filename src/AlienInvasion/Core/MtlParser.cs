@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>MTLから読み取ったマテリアルの色と透明度。</summary>
+    /// <summary>A material's colour and transparency, as read from an MTL.</summary>
     public class MtlColor
     {
         public float R;
@@ -14,7 +14,7 @@ namespace AlienInvasion.Core
     }
 
     /// <summary>
-    /// Blender書き出しMTLテキストを解析する純粋パーサ（UnityEngine非依存）。
+    /// Pure parser for Blender-exported MTL text (no UnityEngine dependency).
     /// </summary>
     public static class MtlParser
     {

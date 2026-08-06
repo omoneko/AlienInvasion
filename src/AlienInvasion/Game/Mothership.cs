@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>母船のGameObjectと位置。GameObject操作は全てメインスレッド(OnUpdate)から呼ぶこと。</summary>
+    /// <summary>The mothership's GameObject and position. Every GameObject operation must be called from the main thread, via OnUpdate.</summary>
     public class Mothership
     {
         private GameObject _gameObject;
@@ -23,7 +23,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>母船を世界Y軸周りにゆっくり回転させる演出。メインスレッド専用。null安全。</summary>
+        /// <summary>Spins the mothership slowly about the world Y axis. Main thread only, and null-safe.</summary>
         public void Spin(float dt)
         {
             if (_gameObject != null)

@@ -14,7 +14,9 @@ public class MtlParserTests
             "newmtl MetallicGray\n" +
             "Kd 0.036653 0.036653 0.036653\n" +
             "d 1.000000\n" +
-            "newmtl マテリアル\n" +
+            // A non-ASCII material name, the Japanese default Blender gives a new material.
+            // Kept as test data because the parser has to survive UTF-8 names.
+            "newmtl \u30de\u30c6\u30ea\u30a2\u30eb\n" +
             "Kd 0.182665 0.791351 0.800007\n" +
             "d 0.900000\n";
 
@@ -28,7 +30,7 @@ public class MtlParserTests
         Assert.Equal(0.036653, gray.B, Precision);
         Assert.Equal(1.0, gray.Alpha, Precision);
 
-        MtlColor jp = materials["マテリアル"];
+        MtlColor jp = materials["\u30de\u30c6\u30ea\u30a2\u30eb"];
         Assert.Equal(0.182665, jp.R, Precision);
         Assert.Equal(0.791351, jp.G, Precision);
         Assert.Equal(0.800007, jp.B, Precision);
@@ -51,13 +53,13 @@ public class MtlParserTests
     public void NonAscii_material_name_with_dot_is_preserved_exactly()
     {
         string mtl =
-            "newmtl マテリアル.001\n" +
+            "newmtl \u30de\u30c6\u30ea\u30a2\u30eb.001\n" +
             "Kd 0.1 0.2 0.3\n" +
             "d 0.5\n";
 
         Dictionary<string, MtlColor> materials = MtlParser.Parse(mtl);
 
-        Assert.True(materials.ContainsKey("マテリアル.001"));
+        Assert.True(materials.ContainsKey("\u30de\u30c6\u30ea\u30a2\u30eb.001"));
     }
 
     [Fact]

@@ -1,14 +1,15 @@
 namespace AlienInvasion.Core
 {
     /// <summary>
-    /// 核弾頭の着弾点とトライポッドの「直撃」判定（Unity非依存の純粋関数）。
-    /// 水平距離のみで判定する（トライポッドは接地しているため高さは無視）。
+    /// Decides whether a nuclear warhead's impact counts as a direct hit on a tripod (pure,
+    /// no Unity dependency). Only the horizontal distance matters - a tripod is on the ground,
+    /// so height is ignored.
     /// </summary>
     public static class NuclearHitTest
     {
         /// <summary>
-        /// 着弾点からの水平差分 (dx, dz) が radius 以内なら直撃（true）。
-        /// 負の radius は非該当（false）として扱う。
+        /// True if the horizontal offset (dx, dz) from the impact is within radius.
+        /// A negative radius counts as no hit.
         /// </summary>
         public static bool IsDirectHit(float dx, float dz, float radius)
         {

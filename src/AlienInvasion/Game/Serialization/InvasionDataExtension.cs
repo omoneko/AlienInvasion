@@ -5,13 +5,15 @@ using ICities;
 namespace AlienInvasion.Game.Serialization
 {
     /// <summary>
-    /// 汚染ゾーン台帳をセーブデータへ永続化する。ゲームが自動検出。
-    /// フェーズ1では進行中の襲来状態(InvasionManager)はセーブデータに含まれない
-    /// ―― OnLoadData は毎レベルロード時に InvasionManager.ResetForNewLevel()/
-    /// RedContaminationVisual.Clear() を呼び、別セーブ切り替え時に旧レベルの
-    /// 静的状態(母船GameObject・襲来フェーズ・デカール等)が残留しないようにしてから、
-    /// 永続化対象である汚染ゾーンのみを ReplaceAll で復元する。これは意図的な簡略化であり、
-    /// 発動中の襲来はレベルロードのたびに「再開」ではなく「破棄」される。
+    /// Persists the contamination zone ledger into the save game. The game discovers this
+    /// class on its own.
+    /// An invasion in progress is deliberately not saved. On every level load, OnLoadData first
+    /// calls InvasionManager.ResetForNewLevel() and RedContaminationVisual.Clear(), so that
+    /// switching to a different save leaves none of the previous level's static state behind -
+    /// no mothership GameObject, no invasion phase, no decals - and then restores the one thing
+    /// that is persisted, the contamination zones, through ReplaceAll. This is a deliberate
+    /// simplification: an invasion under way is discarded on a level load rather than
+    /// resumed.
     /// </summary>
     public class InvasionDataExtension : SerializableDataExtensionBase
     {

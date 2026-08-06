@@ -1,13 +1,15 @@
 namespace AlienInvasion.Core
 {
     /// <summary>
-    /// トライポッド転倒アニメの純粋な進行計算（Unity非依存）。核直撃で「倒れ→横たわり→消滅」する演出に使う。
+    /// Pure progression maths for the tripod toppling animation (no Unity dependency), used
+    /// for the sequence a direct nuclear hit sets off: it falls, lies there, then disappears.
     /// </summary>
     public static class ToppleAnimation
     {
         /// <summary>
-        /// 転倒の進行率 0..1。倒れ始めはゆっくり→加速する ease-in（t^2）で、根元から倒れ込む重さを表現する。
-        /// duration が 0 以下なら即 1（安全側）。
+        /// How far the fall has progressed, 0 to 1. It eases in as t squared - slow at first,
+        /// then accelerating - which is what gives it the weight of toppling from the base.
+        /// A duration of zero or less returns 1 immediately, which is the safe direction.
         /// </summary>
         public static float FallFraction(float elapsed, float duration)
         {
@@ -19,8 +21,9 @@ namespace AlienInvasion.Core
         }
 
         /// <summary>
-        /// 転倒(duration)＋横たわり(dwell)を終え、消滅してよい状態か。
-        /// 「倒れた後に消滅」する順序をこの1関数で表す。
+        /// Whether the fall (duration) and the time spent lying there (dwell) are both over,
+        /// so it can disappear. This single function is what enforces the order: it falls
+        /// first, and only then vanishes.
         /// </summary>
         public static bool IsFinished(float elapsed, float duration, float dwell)
         {

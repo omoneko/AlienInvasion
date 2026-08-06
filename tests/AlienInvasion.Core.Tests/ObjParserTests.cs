@@ -114,13 +114,15 @@ public class ObjParserTests
             "v 0 0 0\n" +
             "v 1 0 0\n" +
             "v 0 1 0\n" +
-            "usemtl マテリアル.001\n" +
+            // A non-ASCII material name, the Japanese default Blender gives a new material.
+            // Kept as test data because the parser has to survive UTF-8 names.
+            "usemtl \u30de\u30c6\u30ea\u30a2\u30eb.001\n" +
             "f 1 2 3\n";
 
         ObjData data = ObjParser.Parse(obj);
 
         Assert.Single(data.Submeshes);
-        Assert.Equal("マテリアル.001", data.Submeshes[0].Material);
+        Assert.Equal("\u30de\u30c6\u30ea\u30a2\u30eb.001", data.Submeshes[0].Material);
     }
 
     [Fact]

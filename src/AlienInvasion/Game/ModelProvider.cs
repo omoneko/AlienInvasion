@@ -7,11 +7,12 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// モデルGameObject生成の単一窓口。AssetBundle(AssetLoader)が使える場合はそれを優先し、
-    /// 使えない場合は Mod配置フォルダ/Models/&lt;name&gt;.obj(+.mtl) から実行時にメッシュを構築して
-    /// キャッシュする。赤デカールのみ、OBJも無い場合に手続き生成のQuadへフォールバックする。
-    /// GameObject/Mesh/Material の生成を伴うため、必ずメインスレッドから呼ぶこと
-    /// (Mothership/Tripodのコンストラクタ、RedContaminationVisual.Syncと同じスレッド)。
+    /// Single entry point for creating model GameObjects. The AssetBundle, through AssetLoader,
+    /// is preferred where it works; otherwise the mesh is built at runtime from
+    /// Models/&lt;name&gt;.obj (and its .mtl) inside the mod folder and cached. The red decal alone
+    /// has one more fallback: a procedurally generated quad, used when even the OBJ is missing.
+    /// It creates GameObjects, Meshes and Materials, so it must be called from the main thread -
+    /// the same thread as the Mothership and Tripod constructors and RedContaminationVisual.Sync.
     /// </summary>
     public static class ModelProvider
     {
@@ -33,7 +34,7 @@ namespace AlienInvasion.Game
             _modDirectory = modDirectory;
         }
 
-        /// <summary>指定名のモデルの新しいインスタンスを返す。生成できなければ null(呼び出し側は既存通りnull安全)。</summary>
+        /// <summary>A new instance of the named model, or null if it could not be created. Every caller is null-safe.</summary>
         public static GameObject CreateInstance(string name)
         {
             try
@@ -97,7 +98,7 @@ namespace AlienInvasion.Game
             {
                 if (string.IsNullOrEmpty(_modDirectory))
                 {
-                    ModConfig.LogError("ModelProvider.BuildFromObj: modDirectory 未初期化 (ModelProvider.Initialize未呼び出し)");
+                    ModConfig.LogError("ModelProvider.BuildFromObj: modDirectory is not set (ModelProvider.Initialize was never called)");
                     return null;
                 }
 
@@ -123,11 +124,11 @@ namespace AlienInvasion.Game
                 Material[] materials;
                 if (!ObjMeshBuilder.TryBuild(data, mtl, ModConfig.ObjFallbackColor, out mesh, out materials))
                 {
-                    ModConfig.LogError("ModelProvider: OBJからのメッシュ構築に失敗 name=" + name + " path=" + objPath);
+                    ModConfig.LogError("ModelProvider: failed to build the mesh from the OBJ, name=" + name + " path=" + objPath);
                     return null;
                 }
 
-                ModConfig.Log("ModelProvider: OBJからモデルを構築しました name=" + name);
+                ModConfig.Log("ModelProvider: built the model from its OBJ, name=" + name);
                 var built = new BuiltModel();
                 built.Mesh = mesh;
                 built.Materials = materials;
@@ -175,9 +176,10 @@ namespace AlienInvasion.Game
             try
             {
                 RenderAssets.DumpAvailableShadersOnce();
-                // 透過(テクスチャのアルファで隙間を作る有機的なレッドウィード)を確実に出すため、
-                // アルファブレンドが素直に効くシェーダーを優先する。Standardの透過はCSランタイムでは
-                // キーワード除去により効かず「べた塗りの赤い矩形」になりがちなので後回しにする。
+                // The red weed needs its transparency to work - the gaps come from the
+                // texture's alpha - so a shader that alpha-blends straightforwardly is
+                // preferred. Standard's transparency usually fails in the CS runtime because
+                // the keywords were stripped, leaving a flat red rectangle, so it comes last.
                 Shader shader = RenderAssets.FindFirst(
                     "Unlit/Transparent", "Sprites/Default", "Particles/Alpha Blended",
                     "Legacy Shaders/Transparent/Diffuse", "Transparent/Diffuse");
@@ -192,13 +194,15 @@ namespace AlienInvasion.Game
                 Material mat = new Material(shader);
                 Color c = ModConfig.RedDecalColor;
 
-                // 宇宙戦争の"レッドウィード"風。Perlinノイズで血管/ツタ状の有機的な赤い繁茂を生成し、
-                // 外周へ放射状にフェード、薄い部分は透明にして地面が透ける隙間を作る。
+                // Styled after the red weed from The War of the Worlds: Perlin noise grows an
+                // organic red spread of veins and creepers, fading radially outwards, with the
+                // thin parts left transparent so the ground shows through the gaps.
                 Texture2D tex = BuildContaminationTexture(c, 256);
                 mat.mainTexture = tex;
                 if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
 
-                // 透明度はテクスチャのアルファで表現するので、色ティントは白(不透明)にする。
+                // The transparency lives in the texture's alpha, so the colour tint is left
+                // white and opaque.
                 Color white = Color.white;
                 mat.color = white;
                 if (mat.HasProperty("_Color")) mat.SetColor("_Color", white);
@@ -216,10 +220,13 @@ namespace AlienInvasion.Game
         }
 
         /// <summary>
-        /// 宇宙戦争の"レッドウィード"風の汚染テクスチャを生成する。
-        /// Perlinノイズのfbm(斑)とridged(血管/ツタ状の稜線)を合成した密度で、深いクリムゾンから
-        /// tint色(オレンジ寄り赤)へ色を補間。アルファは外周への放射状フェード×密度で、薄い部分は
-        /// 透明にして地面が透ける有機的な隙間を作る。tint.a を中心のピーク不透明度として使う。
+        /// Generates the contamination texture, styled after the red weed from The War of the
+        /// Worlds. The density combines two forms of Perlin noise - fbm for the mottling and a
+        /// ridged variant for the veins and creepers - and drives a colour interpolation from
+        /// deep crimson to the tint colour, an orange-leaning red. The alpha is the radial
+        /// fade towards the edge multiplied by that density, so the thin parts come out
+        /// transparent and leave organic gaps for the ground to show through. tint.a is the
+        /// peak opacity at the centre.
         /// </summary>
         private static Texture2D BuildContaminationTexture(Color tint, int size)
         {
@@ -227,14 +234,14 @@ namespace AlienInvasion.Game
             tex.wrapMode = TextureWrapMode.Clamp;
             float half = (size - 1) * 0.5f;
 
-            Color baseCol = new Color(tint.r * 0.35f, tint.g * 0.12f, tint.b * 0.10f); // 深いクリムゾン
-            Color highCol = new Color(tint.r, tint.g, tint.b);                          // オレンジ寄り赤
+            Color baseCol = new Color(tint.r * 0.35f, tint.g * 0.12f, tint.b * 0.10f); // deep crimson
+            Color highCol = new Color(tint.r, tint.g, tint.b);                          // orange-leaning red
             float peak = tint.a;
 
-            const float freq = 4.5f;   // 模様の粗さ
-            const float off = 13.37f;  // ラティス格子アーティファクト回避のオフセット
+            const float freq = 4.5f;   // coarseness of the pattern
+            const float off = 13.37f;  // offset that avoids artefacts on the noise lattice
 
-            var pixels = new Color[size * size]; // SetPixels一括(SetPixelのループより高速)
+            var pixels = new Color[size * size]; // filled in one SetPixels call, far faster than looping SetPixel
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
@@ -244,19 +251,21 @@ namespace AlienInvasion.Game
 
                     float dx = (x - half) / half;
                     float dy = (y - half) / half;
-                    // 四角ベースのフォールオフ(チェビシェフ距離=max(|dx|,|dy|))。円形(ユークリッド距離)だと
-                    // 正方形の四隅が切れて円形に見えるが、これだと四辺まで均等に届き四角い外形になる。
+                    // A square falloff, using the Chebyshev distance max(|dx|,|dy|). A circular
+                    // one - the Euclidean distance - cuts the corners off and reads as a disc;
+                    // this reaches every edge evenly and keeps the square outline.
                     float dmax = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
                     float radial = Mathf.Clamp01(1f - dmax);
-                    radial = radial * radial; // 外周(四辺)ほど柔らかくフェード=輪郭ぼんやり
+                    radial = radial * radial; // fades more softly towards the edges, blurring the outline
 
-                    float fb = Fbm(u * freq + off, v * freq + off);                                   // 斑
-                    float rg = 1f - Mathf.Abs(2f * Fbm(u * freq * 2f + off * 2f, v * freq * 2f + off * 2f) - 1f); // 稜線(血管/ツタ状)
+                    float fb = Fbm(u * freq + off, v * freq + off);                                   // the mottling
+                    float rg = 1f - Mathf.Abs(2f * Fbm(u * freq * 2f + off * 2f, v * freq * 2f + off * 2f) - 1f); // the ridges, the veins and creepers
                     float density = Mathf.Clamp01(fb * 0.55f + rg * 0.55f);
 
                     Color col = Color.Lerp(baseCol, highCol, Mathf.Clamp01(density * 1.2f));
 
-                    // 密度が低い所は透明(地面が透ける隙間)。中心ほど濃く、外周へフェード。
+                    // Low density means transparent, leaving gaps for the ground. It is densest
+                    // at the centre and fades outwards.
                     float a = radial * peak * Mathf.Clamp01((density - 0.25f) * 1.8f);
 
                     pixels[y * size + x] = new Color(col.r, col.g, col.b, a);
@@ -267,7 +276,7 @@ namespace AlienInvasion.Game
             return tex;
         }
 
-        /// <summary>4オクターブの Perlin ノイズによる fbm(概ね 0..1)。</summary>
+        /// <summary>Four octaves of Perlin noise as fbm, roughly in 0..1.</summary>
         private static float Fbm(float x, float y)
         {
             float sum = 0f;
