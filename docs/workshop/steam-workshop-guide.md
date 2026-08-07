@@ -1,55 +1,72 @@
-# Steam Workshop 公開ガイド — Alien Invasion
+# Steam Workshop publishing guide - Alien Invasion
 
-Cities: Skylines（初代）のコードModをWorkshopに公開するための素材と手順をまとめています。
+The material and the steps for publishing a Cities: Skylines (2015) code mod to the Workshop.
 
-## 1. タイトル / 基本情報
+## 1. Title and basics
 
-- **Workshop タイトル:** `Alien Invasion — War of the Worlds`
-  （ゲーム内の Mod 名は `Alien Invasion`。Workshop タイトルはこちらの副題付きを推奨）
-- **可視性:** まずは `Friends only` か `Unlisted` でテスト公開 → 問題なければ `Public`
-- **タグ:** `Mod`
-- **必要 DLC の記載:** 説明文に明記済み（Natural Disasters 推奨・After Dark で夜間発光）
+- **Workshop title:** `Alien Invasion — War of the Worlds`
+  (the in-game mod name is `Alien Invasion`; the Workshop title is better with the subtitle)
+- **Visibility:** publish first as `Friends only` or `Unlisted` to test, then `Public` once it
+  looks right
+- **Tags:** `Mod`
+- **DLC requirements:** already stated in the description - Natural Disasters recommended, and
+  After Dark for the night-time glow
 
-## 2. プレビュー画像（サムネイル）
+## 2. Preview image (the thumbnail)
 
-- **採用:** [`preview.png`](preview.png) — 原発Mod（NuclearMeltdown）のプレビューに合わせて自作したカバー画像（1024×1024・2パネル構成）。
-  - 上: UFO母船の俯瞰（[`cover-ufo.png`](cover-ufo.png) ベース）＋タイトル「ALIEN / INVASION」＋UFOアイコン
-  - 中: 黄黒のハザード帯
-  - 下: 3体トライポッドの市街地襲撃（[`cover-tripods.png`](cover-tripods.png) ベース）＋「TRIPOD ASSAULT」ラベル
-  - 同作者の原発Modと同じトーンでシリーズ感を出しています。
-- **再生成:** [`make_preview.py`](make_preview.py)（Pillow使用）。上下の画像・タイトル色・ラベルを変えて作り直せます。
-  実行: `python docs/workshop/make_preview.py`
-- Steam のプレビューは小さめ＆一部で正方形にクロップされます。本画像は正方形なので問題ありません。
+- **In use:** [`preview.png`](preview.png), a cover image made to match the NuclearMeltdown mod's
+  preview: 1024 by 1024, in two panels.
+  - Top: the mothership from above, based on [`cover-ufo.png`](cover-ufo.png), with the title
+    "ALIEN / INVASION" and the mothership icon
+  - Middle: the yellow and black hazard band
+  - Bottom: three tripods attacking a city, based on
+    [`cover-tripods.png`](cover-tripods.png), labelled "TRIPOD ASSAULT"
+  - The same tone as the author's NuclearMeltdown mod, so they read as a series.
+- **Regenerating it:** [`make_preview.py`](make_preview.py), which uses Pillow. The two images,
+  the title colour and the labels can all be changed and it rebuilt.
+  Run it with `python docs/workshop/make_preview.py`
+- Steam shows the preview small and crops it square in places. This image is already square, so
+  that is fine.
 
-## 3. ギャラリー画像（Workshopページに追加する順番）
+## 3. Gallery images (in the order they go on the Workshop page)
 
-1. [`screenshot-1-mothership.png`](screenshot-1-mothership.png) — 母船が都心上空に飛来（クレーター・落雷つき）
-2. [`screenshot-2-night-tripod.png`](screenshot-2-night-tripod.png) — 夜、赤く発光するトライポッド（夜間発光の見せ場）
-3. [`screenshot-3-tripod-highway.png`](screenshot-3-tripod-highway.png) — インターチェンジを跨ぐトライポッドと炎上
-4. [`screenshot-4-street-attack.png`](screenshot-4-street-attack.png) — 市街地での母船＋トライポッドの破壊
+1. [`screenshot-1-mothership.png`](screenshot-1-mothership.png) - the mothership arriving over
+   the city centre, with the crater and the lightning
+2. [`screenshot-2-night-tripod.png`](screenshot-2-night-tripod.png) - a tripod glowing red at
+   night, which is where the night-time glow shows best
+3. [`screenshot-3-tripod-highway.png`](screenshot-3-tripod-highway.png) - a tripod straddling an
+   interchange, with everything on fire
+4. [`screenshot-4-street-attack.png`](screenshot-4-street-attack.png) - the mothership and a
+   tripod wrecking a street
 
-## 4. 説明文
+## 4. Description
 
-- 本文（BBCode・そのまま貼り付け可）: [`steam-description.txt`](steam-description.txt)
-- 英語。見出し/箇条書きは Steam の BBCode（`[h1]` `[list]` `[b]` `[i]`）で記述済み。
+- The text, in BBCode and ready to paste:
+  [`steam-description.txt`](steam-description.txt)
+- In English, with the headings and lists written in Steam's BBCode (`[h1]`, `[list]`, `[b]`,
+  `[i]`).
 
-## 5. 公開手順（ゲーム内 Content Manager から）
+## 5. Publishing (from the in-game Content Manager)
 
-1. ビルド＆配置済みであることを確認（`build.ps1` 実行 → `...\Addons\Mods\AlienInvasion` に配置）。
-2. Cities: Skylines を起動 → メインメニューの **Content Manager → Mods**。
-3. `Alien Invasion` の行にある **Share（共有）** ボタンをクリック。
-4. アップロード画面で:
-   - **Title / Description** を入力（上記タイトル、`steam-description.txt` の本文を貼付）
-   - **Preview image** に `docs/workshop/preview.png` を指定
-   - **Visibility** を選択（テストは Friends only 推奨）
-5. アップロード。反映後、Steam の Workshop ページで **ギャラリー画像**（上記4枚）を追加。
+1. Confirm it is built and deployed - run `build.ps1` and check
+   `...\Addons\Mods\AlienInvasion`.
+2. Start Cities: Skylines and open **Content Manager -> Mods** from the main menu.
+3. Click **Share** on the `Alien Invasion` row.
+4. On the upload screen:
+   - Fill in the **Title** and **Description**, using the title above and the text from
+     `steam-description.txt`
+   - Set the **Preview image** to `docs/workshop/preview.png`
+   - Choose the **Visibility** - Friends only is a good choice for testing
+5. Upload. Once it appears, add the four **gallery images** on the Steam Workshop page.
 
-> 補足: コードModは実体（`AlienInvasion.dll` と `Models/` `Sounds/`）が Mod フォルダに揃っていれば、
-> Content Manager からそのまま共有できます。更新時は同じ Share ボタンから再アップロードされます。
+> Note that a code mod can be shared straight from the Content Manager as long as everything it
+> consists of - `AlienInvasion.dll` plus `Models/` and `Sounds/` - is in the mod folder. Updating
+> it re-uploads through the same Share button.
 
-## 6. 公開前チェックリスト
+## 6. Checklist before publishing
 
-- [ ] 実機でひと通り動作確認（召喚・破壊・トライポッド・汚染・夜間発光・効果音・一時停止）
-- [ ] `preview.png` が意図した画像になっている
-- [ ] 説明文の DLC 注記（Natural Disasters / After Dark）が正しい
-- [ ] まず Friends only / Unlisted で試験公開 → 問題なければ Public
+- [ ] Everything works in game: summoning, the destruction, the tripods, the contamination, the
+      night-time glow, the sounds and the pause
+- [ ] `preview.png` is the image you intended
+- [ ] The DLC notes in the description are right (Natural Disasters and After Dark)
+- [ ] Publish as Friends only or Unlisted first, then make it Public once it looks right
