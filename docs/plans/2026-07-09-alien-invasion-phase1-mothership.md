@@ -2,71 +2,71 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Cities: Skylines（初代）に、手動（キーバインド）またはランダムで発動するUFO母船襲来（降下→雷連打→クレーター形成＋周辺建物破壊→上昇消滅→赤い放射能汚染をゲーム内1年残す）を実装する。
+**Goal:** an alien invasion for Cities: Skylines (2015), triggered by a key or at random: a UFO mothership descends, hammers the ground with lightning, forms a crater and destroys the buildings around it, then ascends and vanishes, leaving red radioactive contamination behind for an in-game year.
 
-**Architecture:** Unity/ゲーム型に依存しない純粋ロジック（状態遷移・座標補間・汚染セル計算・期限判定・直列化）を `Core/` に分離してxUnitで実TDD。ゲーム統合層（AssetBundleロード・母船GameObject制御・エフェクト・汚染書込・Harmony不要＝Mod主導）は薄く保つ。**スレッド分離が最重要**: GameObject/Transform/LineRenderer等のUnity Object操作は必ず `OnUpdate`（メイン/描画スレッド）で行い、`DisasterHelpers`/`NaturalResourceManager`（クレーター・建物破壊・汚染書込）は必ず `OnBeforeSimulationTick`/`OnAfterSimulationTick`（シミュレーションスレッド）で行う。この2つを跨ぐ状態は単純な値型フィールド（enum/float/Vector3）とし、各フィールドは常に単一スレッドのみが書き込む（single-writer原則）。
+**Architecture:** the pure logic - the state transitions, the position interpolation, the contamination cell maths, the expiry test and the serialisation - is separated into `Core/`, free of Unity and the game's types, and driven test-first with xUnit. The game integration layer - loading the AssetBundle, driving the mothership GameObject, the effects and writing the contamination - stays thin; no Harmony is needed, since the mod drives everything itself. **The thread split matters most**: anything touching a Unity object - GameObjects, Transforms, LineRenderers - happens in `OnUpdate`, on the main rendering thread, while `DisasterHelpers` and `NaturalResourceManager` - the crater, the destruction and the contamination - happen in `OnBeforeSimulationTick` and `OnAfterSimulationTick`, on the simulation thread. Anything shared across that boundary is a simple value-typed field - an enum, a float, a Vector3 - and each field is only ever written by one thread.
 
-**Tech Stack:** C# / .NET Framework 3.5（Mod本体, MSBuildビルド）, `ICities`/`Assembly-CSharp`/`UnityEngine`/`ColossalManaged` 参照。テストは .NET 8 + xUnit（Coreソースをリンク参照）。3Dアセットは Unity 5.6.6f2 で AssetBundle 化し同梱。
+**Tech stack:** C# on .NET Framework 3.5 for the mod itself, built with MSBuild, referencing `ICities`, `Assembly-CSharp`, `UnityEngine` and `ColossalManaged`. The tests run on .NET 8 with xUnit, linking the Core sources. The 3D assets are packed into an AssetBundle with Unity 5.6.6f2 and shipped with the mod.
 
 ## Global Constraints
 
-- 対象FW（Mod本体）: **.NET Framework 3.5**。`Core/` は net35 と net8 の両方でコンパイルされるため ValueTuple 等の net35 非対応機能を使わない。
-- ゲームDLL参照元: `C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\`（`ICities.dll`, `Assembly-CSharp.dll`, `UnityEngine.dll`, `ColossalManaged.dll`）。参照は `Private=False`。
-- **Harmonyは本Modでは不要**（既存メソッドへのパッチが無いため）。ただし `ICities` インターフェース（`IUserMod`, `ThreadingExtensionBase`, `SerializableDataExtensionBase`）はゲームが自動検出する。
-- デプロイ先: `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\`。AssetBundle は `Assets\alieninvasion.bundle` として同梱。
-- ログは `UnityEngine.Debug.Log` に接頭辞 `"[AlienInvasion] "` を付けてのみ出力。
-- 全 tick / GameObject生成 / エフェクト / 直列化処理は try/catch で保護し、例外をゲーム本体へ伝播させない。
-- **AssetBundle/prefab が読み込めない場合はログを出して該当演出をスキップ**（ゲームを巻き込まない。テスト時にまだ `.bundle` が無くてもビルド・起動は成功する）。
-- 検証済み実API（逆コンパイルで確認済み。以降のタスクで正確に使用する）:
-  - `UnityEngine.AssetBundle.LoadFromFile(string path)` → `AssetBundle`（static）
+- The mod targets **.NET Framework 3.5**. `Core/` is compiled for both net35 and net8, so it must avoid anything net35 lacks, such as ValueTuple.
+- The game DLLs come from `Cities_Data\Managed\` in the game's installation: `ICities.dll`, `Assembly-CSharp.dll`, `UnityEngine.dll` and `ColossalManaged.dll`, referenced with `Private=False`.
+- **This mod needs no Harmony**, since it patches no existing method. The `ICities` interfaces - `IUserMod`, `ThreadingExtensionBase` and `SerializableDataExtensionBase` - are found by the game on its own.
+- It deploys to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\`, with the AssetBundle shipped as `Assets\alieninvasion.bundle`.
+- Logging goes through `UnityEngine.Debug.Log` with the `"[AlienInvasion] "` prefix and nowhere else.
+- Every tick, GameObject creation, effect and serialisation path is wrapped in try/catch, so no exception propagates into the game.
+- **If the AssetBundle or a prefab cannot be loaded, log it and skip that piece of the presentation** rather than dragging the game down. The build and the launch both succeed even before the `.bundle` exists.
+- The real APIs, confirmed by decompiling, to be used exactly as written in the tasks below:
+  - `UnityEngine.AssetBundle.LoadFromFile(string path)`, static, returning `AssetBundle`
   - `AssetBundle.LoadAsset<T>(string name)` where `T : UnityEngine.Object`
-  - `UnityEngine.LineRenderer`: `startWidth`/`endWidth`/`positionCount`/`useWorldSpace`（すべて `extern` プロパティ）, `SetPosition(int, Vector3)`, `SetPositions(Vector3[])`。基底 `Renderer` から `material` プロパティを継承。
-  - `UnityEngine.Shader.Find(string name)`（static）。ビルトインシェーダー名 `"Particles/Additive"` を使用。
-  - `UnityEngine.Object.FindObjectOfType<T>()`（static）
-  - `RainProperties`（`MonoBehaviour`）: `public AudioInfo m_ThunderSound;` フィールド。再生は `Singleton<AudioManager>.instance.AddEvent(Singleton<AudioManager>.instance.AmbientGroup, audioInfo, position, Vector3.zero, 200f, 1f, 1f)`。
-  - `DisasterHelpers.MakeCrater(Vector2 position, float radius, float depth, bool raiseEdges)`（static）
-  - `DisasterHelpers.DestroyStuff(int seed, InstanceManager.Group group, Vector3 position, float totalRadius, float preRadius, float removeRadius, float destructionRadiusMin, float destructionRadiusMax, float burnRadiusMin, float burnRadiusMax)`（static）。**重要な既知の罠**: `preRadius` は「衝撃波が到達した外周半径」として機能する門番値であり、`preRadius=0` を渡すと**内部の距離判定が常に偽になり何も破壊されない**（Nuclear Meltdown Modで実際に踏んだバグ）。必ず `preRadius = totalRadius` を渡すこと。
-  - `NaturalResourceManager.instance.m_naturalResources[index].m_pollution`（public byte、構造体配列でインプレース代入可）、`NaturalResourceManager.instance.AreaModifiedB(minX,minZ,maxX,maxZ)`。グリッド定数: `CellSize=33.75f`, `Resolution=512`, `cell=Clamp((int)(world/33.75f+256f),0,511)`, `index=cellZ*512+cellX`。
-  - `MeteorAI.m_impactEffect`（public `EffectInfo`）を `PrefabCollection<VehicleInfo>` 経由で取得可能（`VehicleInfo.m_vehicleAI as MeteorAI`）。爆発の閃光演出に流用。
-  - `Singleton<EffectManager>.instance.DispatchEffect(EffectInfo, InstanceID, EffectInfo.SpawnArea, Vector3, float, float, AudioGroup)`。
-  - `ThreadingExtensionBase`（namespace `ICities`）: `OnUpdate(float realTimeDelta, float simulationTimeDelta)`（**メイン/描画スレッド**）、`OnBeforeSimulationTick()`/`OnAfterSimulationTick()`（**シミュレーションスレッド**）。
-  - `SerializableDataExtensionBase`: `OnSaveData()`/`OnLoadData()`、`serializableDataManager.SaveData(id, byte[])`/`LoadData(id)`。
-- Unity バージョン: **5.6.6f2**（`Cities.exe` 実体は5.6.7ビルド、コミュニティ標準の5.6.6と相互互換）でAssetBundleをビルドする。
-- 汚染半径・時間・確率・キー等はすべて `ModConfig` の定数として一箇所にまとめ、調整可能にする（ユーザー要件）。
-- **3Dモデル確認済み事項**（Blender MCP接続で直接検証）: `MotherShip` は幾何中心ピボットで正しい。`TriPod` は当初ピボットが頭部付近にあり接地点になっていなかったため、原点を脚の最下点(バウンディングボックス最下部の中心)へ移動済み（メッシュ自体は移動していない）。両モデルとも現時点でマテリアル未割当（0個）。`MotherShip` はZ軸スケール×0.1、`TriPod` はY軸スケール×1.5が未適用のまま残っている（FBXエクスポート前に適用推奨）。これらはAssetBundle制作(Task 14)側の作業であり、本プランのC#実装をブロックしない。
+  - `UnityEngine.LineRenderer`: `startWidth`, `endWidth`, `positionCount` and `useWorldSpace`, all `extern` properties, plus `SetPosition(int, Vector3)` and `SetPositions(Vector3[])`. It inherits `material` from `Renderer`.
+  - `UnityEngine.Shader.Find(string name)`, static, using the built-in shader `"Particles/Additive"`.
+  - `UnityEngine.Object.FindObjectOfType<T>()`, static
+  - `RainProperties`, a `MonoBehaviour`, has the field `public AudioInfo m_ThunderSound;`. It is played with `Singleton<AudioManager>.instance.AddEvent(Singleton<AudioManager>.instance.AmbientGroup, audioInfo, position, Vector3.zero, 200f, 1f, 1f)`.
+  - `DisasterHelpers.MakeCrater(Vector2 position, float radius, float depth, bool raiseEdges)`, static
+  - `DisasterHelpers.DestroyStuff(int seed, InstanceManager.Group group, Vector3 position, float totalRadius, float preRadius, float removeRadius, float destructionRadiusMin, float destructionRadiusMax, float burnRadiusMin, float burnRadiusMax)`, static. **A known trap:** `preRadius` acts as a gate, standing for how far the shockwave has reached, and passing `preRadius=0` makes **the internal distance test always false, so nothing is destroyed at all**. This was hit for real in the Nuclear Meltdown mod. Always pass `preRadius = totalRadius`.
+  - `NaturalResourceManager.instance.m_naturalResources[index].m_pollution`, a public byte in an array of structs so it can be assigned in place, and `NaturalResourceManager.instance.AreaModifiedB(minX,minZ,maxX,maxZ)`. The grid constants: `CellSize=33.75f`, `Resolution=512`, `cell=Clamp((int)(world/33.75f+256f),0,511)` and `index=cellZ*512+cellX`.
+  - `MeteorAI.m_impactEffect`, a public `EffectInfo`, can be reached through `PrefabCollection<VehicleInfo>` with `VehicleInfo.m_vehicleAI as MeteorAI`. It is borrowed for the flash of the explosion.
+  - `Singleton<EffectManager>.instance.DispatchEffect(EffectInfo, InstanceID, EffectInfo.SpawnArea, Vector3, float, float, AudioGroup)`
+  - `ThreadingExtensionBase`, in the `ICities` namespace: `OnUpdate(float realTimeDelta, float simulationTimeDelta)` on the **main rendering thread**, and `OnBeforeSimulationTick()` and `OnAfterSimulationTick()` on the **simulation thread**.
+  - `SerializableDataExtensionBase`: `OnSaveData()` and `OnLoadData()`, with `serializableDataManager.SaveData(id, byte[])` and `LoadData(id)`.
+- The AssetBundle is built with Unity **5.6.6f2**. `Cities.exe` is actually a 5.6.7 build, but that is interchangeable with the 5.6.6 the community standardised on.
+- The contamination radius, the durations, the probabilities, the key and everything like them are gathered in one place as `ModConfig` constants so they can be tuned; this was a user requirement.
+- **What was confirmed about the 3D models**, checked directly over the Blender MCP connection: `MotherShip`'s pivot is at its geometric centre, which is right. `TriPod`'s pivot started near the head rather than at the ground contact point, so the origin has been moved to the lowest point of the legs - the centre of the bottom of the bounding box - without moving the mesh itself. Neither model has any material assigned yet. `MotherShip` still has an unapplied Z scale of 0.1 and `TriPod` an unapplied Y scale of 1.5; both are best applied before the FBX export. All of this belongs to building the AssetBundle in Task 14 and does not block the C# work in this plan.
 
 ---
 
 ## File Structure
 
 ```
-エイリアン襲来プロジェクト/
+<repository root>/
 ├─ AlienInvasion.sln
 ├─ build.ps1
-├─ models/source/                         # Blenderソース(MotherShip.stl, TriPod.stl, models.blend)
-├─ unity-project/                          # AssetBundleビルド用Unityプロジェクト(Task 14で作成)
+├─ models/source/                         # the Blender sources: MotherShip.stl, TriPod.stl, models.blend
+├─ unity-project/                          # the Unity project that builds the AssetBundle, created in Task 14
 │  └─ Assets/Editor/BuildAssetBundles.cs
 ├─ src/AlienInvasion/
 │  ├─ AlienInvasion.csproj
 │  ├─ Properties/AssemblyInfo.cs
-│  ├─ Assets/alieninvasion.bundle          # (ユーザーがUnityでビルドして配置)
-│  ├─ Core/                                 # Unity非依存・テスト対象
-│  │   ├─ InvasionState.cs                  # 状態enum＋遷移判定
-│  │   ├─ ContaminationZone.cs              # struct(中心/半径/開始時刻)
-│  │   ├─ GridMath.cs                       # 座標変換＋半径セル列挙
-│  │   ├─ ExpiryClock.cs                    # N年経過判定
-│  │   ├─ ZoneSerializer.cs                 # ゾーン台帳の直列化
-│  │   └─ MovementMath.cs                   # 高度補間・イージング
+│  ├─ Assets/alieninvasion.bundle          # built in Unity by the user and placed here
+│  ├─ Core/                                 # no Unity dependency; this is what the tests cover
+│  │   ├─ InvasionState.cs                  # the state enum and the transition rules
+│  │   ├─ ContaminationZone.cs              # a struct: centre, radius, start time
+│  │   ├─ GridMath.cs                       # coordinate conversion and enumerating the cells in a radius
+│  │   ├─ ExpiryClock.cs                    # the N-year expiry test
+│  │   ├─ ZoneSerializer.cs                 # serialising the zone ledger
+│  │   └─ MovementMath.cs                   # altitude interpolation and easing
 │  ├─ Game/
 │  │   ├─ Mod.cs                            # IUserMod
-│  │   ├─ ModConfig.cs                      # 全定数
-│  │   ├─ AssetLoader.cs                    # AssetBundleロード
-│  │   ├─ PollutionField.cs                 # NaturalResourceManager書込
-│  │   ├─ ContaminationManager.cs           # 汚染ゾーン台帳
-│  │   ├─ RedContaminationVisual.cs         # 赤デカール配置/撤去
-│  │   ├─ Effects.cs                        # 雷ボルト・閃光・雷鳴
-│  │   ├─ InvasionManager.cs                # 状態機械の統括
-│  │   ├─ Mothership.cs                     # 母船GameObject制御
+│  │   ├─ ModConfig.cs                      # every constant
+│  │   ├─ AssetLoader.cs                    # loading the AssetBundle
+│  │   ├─ PollutionField.cs                 # writing to NaturalResourceManager
+│  │   ├─ ContaminationManager.cs           # the contamination zone ledger
+│  │   ├─ RedContaminationVisual.cs         # placing and removing the red decals
+│  │   ├─ Effects.cs                        # the lightning bolts, the flash and the thunder
+│  │   ├─ InvasionManager.cs                # the state machine that runs it all
+│  │   ├─ Mothership.cs                     # driving the mothership GameObject
 │  │   ├─ Simulation/InvasionThreadingExtension.cs
 │  │   └─ Serialization/InvasionDataExtension.cs
 │  └─ README.md
@@ -79,11 +79,11 @@
    └─ MovementMathTests.cs
 ```
 
-**依存の向き:** `Game/* → Core/*`（一方向）。`Core/*` は他に依存しない。
+**Dependencies point one way:** `Game/*` depends on `Core/*`, and `Core/*` depends on nothing else.
 
 ---
 
-## Task 1: Core — InvasionState と ContaminationZone
+## Task 1: Core - InvasionState and ContaminationZone
 
 **Files:**
 - Create: `src/AlienInvasion/Core/InvasionState.cs`
@@ -94,11 +94,11 @@
 **Interfaces:**
 - Consumes: nothing
 - Produces:
-  - `enum InvasionState { Idle, Descending, Bombarding, Ascending, Done }`（namespace `AlienInvasion.Core`）
-  - `static class InvasionStateMachine { static bool CanTransition(InvasionState from, InvasionState to); static InvasionState Next(InvasionState current); }` — 許可される遷移は `Idle→Descending→Bombarding→Ascending→Done→Idle` の一方向のみ。
+  - `enum InvasionState { Idle, Descending, Bombarding, Ascending, Done }` in the `AlienInvasion.Core` namespace
+  - `static class InvasionStateMachine { static bool CanTransition(InvasionState from, InvasionState to); static InvasionState Next(InvasionState current); }`, where the only permitted transitions run one way round the cycle `Idle`, `Descending`, `Bombarding`, `Ascending`, `Done`, `Idle`.
   - `struct ContaminationZone { public float CenterX; public float CenterZ; public float Radius; public long StartTicks; public ContaminationZone(float centerX, float centerZ, float radius, long startTicks); }`
 
-- [ ] **Step 1: テストプロジェクトを作成**
+- [ ] **Step 1: create the test project.**
 
 `tests/AlienInvasion.Core.Tests/AlienInvasion.Core.Tests.csproj`:
 ```xml
@@ -169,15 +169,15 @@ public class InvasionStateTests
 - [ ] **Step 3: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: FAIL（`InvasionState`/`InvasionStateMachine`/`ContaminationZone` が未定義でコンパイルエラー）
+Expected: FAIL with a compile error, since `InvasionState`, `InvasionStateMachine` and `ContaminationZone` do not exist yet
 
-- [ ] **Step 4: 実装**
+- [ ] **Step 4: implement it.**
 
 `src/AlienInvasion/Core/InvasionState.cs`:
 ```csharp
 namespace AlienInvasion.Core
 {
-    /// <summary>1回の襲来イベントの進行状態。Idle→Descending→Bombarding→Ascending→Done→Idle の一方向循環。</summary>
+    /// <summary>How far a single invasion has progressed. A one-way cycle: Idle, Descending, Bombarding, Ascending, Done, Idle.</summary>
     public enum InvasionState
     {
         Idle,
@@ -187,7 +187,7 @@ namespace AlienInvasion.Core
         Done
     }
 
-    /// <summary>InvasionState の許可された遷移のみを通す状態機械ロジック。</summary>
+    /// <summary>The state machine logic, which lets only the permitted InvasionState transitions through.</summary>
     public static class InvasionStateMachine
     {
         public static bool CanTransition(InvasionState from, InvasionState to)
@@ -243,12 +243,12 @@ Expected: PASS (all of them)
 
 ```bash
 git add src/AlienInvasion/Core/InvasionState.cs src/AlienInvasion/Core/ContaminationZone.cs tests/AlienInvasion.Core.Tests
-git commit -m "feat: InvasionState状態機械とContaminationZoneを追加"
+git commit -m "feat: add the InvasionState state machine and ContaminationZone"
 ```
 
 ---
 
-## Task 2: Core — GridMath（座標変換と半径セル列挙）
+## Task 2: Core - GridMath (coordinate conversion and enumerating the cells in a radius)
 
 **Files:**
 - Create: `src/AlienInvasion/Core/GridMath.cs`
@@ -256,12 +256,12 @@ git commit -m "feat: InvasionState状態機械とContaminationZoneを追加"
 
 **Interfaces:**
 - Consumes: nothing
-- Produces（`static class GridMath`, namespace `AlienInvasion.Core`）:
+- Produces, on `static class GridMath` in the `AlienInvasion.Core` namespace:
   - `const float CellSize = 33.75f;`
   - `const int Resolution = 512;`
   - `int WorldToCell(float world)` → `Clamp((int)(world/33.75f+256f), 0, 511)`
   - `int CellIndex(int cellX, int cellZ)` → `cellZ*512+cellX`
-  - `System.Collections.Generic.List<int> CellsInRadius(float centerX, float centerZ, float radiusMeters)` — 半径内の全セルindexを重複なく列挙（円判定はセル中心のワールド距離）。
+  - `System.Collections.Generic.List<int> CellsInRadius(float centerX, float centerZ, float radiusMeters)` - lists every cell index inside the radius, without duplicates, testing the circle against the world distance to each cell's centre.
 
 - [ ] **Step 1: write the failing tests.**
 
@@ -326,7 +326,7 @@ public class GridMathTests
 - [ ] **Step 2: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: FAIL（`GridMath` 未定義）
+Expected: FAIL, `GridMath` is not defined yet
 
 - [ ] **Step 3: implement.**
 
@@ -336,7 +336,7 @@ using System.Collections.Generic;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>NaturalResourceManager の汚染グリッド(512x512, セル33.75m)に対する座標計算。</summary>
+    /// <summary>Coordinate maths for NaturalResourceManager's pollution grid: 512x512, 33.75 m cells.</summary>
     public static class GridMath
     {
         public const float CellSize = 33.75f;
@@ -396,12 +396,12 @@ Expected: PASS (all of them)
 
 ```bash
 git add src/AlienInvasion/Core/GridMath.cs tests/AlienInvasion.Core.Tests/GridMathTests.cs
-git commit -m "feat: GridMath 座標変換と半径セル列挙を追加"
+git commit -m "feat: add GridMath, the coordinate conversion and radius enumeration"
 ```
 
 ---
 
-## Task 3: Core — ExpiryClock（N年経過判定）
+## Task 3: Core - ExpiryClock (the N-year expiry test)
 
 **Files:**
 - Create: `src/AlienInvasion/Core/ExpiryClock.cs`
@@ -409,8 +409,8 @@ git commit -m "feat: GridMath 座標変換と半径セル列挙を追加"
 
 **Interfaces:**
 - Consumes: nothing
-- Produces（`static class ExpiryClock`, namespace `AlienInvasion.Core`）:
-  - `bool HasExpired(long startTicks, long nowTicks, int years)` — `now >= start.AddYears(years)`。
+- Produces, on `static class ExpiryClock` in the `AlienInvasion.Core` namespace:
+  - `bool HasExpired(long startTicks, long nowTicks, int years)` - `now >= start.AddYears(years)`.
 
 - [ ] **Step 1: write the failing tests.**
 
@@ -451,7 +451,7 @@ public class ExpiryClockTests
 - [ ] **Step 2: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: FAIL（`ExpiryClock` 未定義）
+Expected: FAIL, `ExpiryClock` is not defined yet
 
 - [ ] **Step 3: implement.**
 
@@ -483,12 +483,12 @@ Expected: PASS (all of them)
 
 ```bash
 git add src/AlienInvasion/Core/ExpiryClock.cs tests/AlienInvasion.Core.Tests/ExpiryClockTests.cs
-git commit -m "feat: ExpiryClock N年経過判定を追加"
+git commit -m "feat: add ExpiryClock, the N-year expiry test"
 ```
 
 ---
 
-## Task 4: Core — ZoneSerializer（ゾーン台帳の直列化）
+## Task 4: Core - ZoneSerializer (serialising the zone ledger)
 
 **Files:**
 - Create: `src/AlienInvasion/Core/ZoneSerializer.cs`
@@ -496,10 +496,10 @@ git commit -m "feat: ExpiryClock N年経過判定を追加"
 
 **Interfaces:**
 - Consumes `ContaminationZone` from Task 1
-- Produces（`static class ZoneSerializer`, namespace `AlienInvasion.Core`）:
+- Produces, on `static class ZoneSerializer` in the `AlienInvasion.Core` namespace:
   - `const byte Version = 1;`
   - `byte[] Serialize(List<ContaminationZone> zones)`
-  - `List<ContaminationZone> Deserialize(byte[] data)` — null/短すぎる/未知バージョン/破損時は空リストを返し、例外を投げない。
+  - `List<ContaminationZone> Deserialize(byte[] data)` - returns an empty list for null, too-short, unknown-version or corrupt data, and never throws.
 
 - [ ] **Step 1: write the failing tests.**
 
@@ -565,7 +565,7 @@ using System.IO;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>汚染ゾーン台帳を byte[] に直列化/復元（セーブデータ保存用）。</summary>
+    /// <summary>Serialises the contamination zone ledger to and from byte[] for the save game.</summary>
     public static class ZoneSerializer
     {
         public const byte Version = 1;
@@ -631,12 +631,12 @@ Expected: PASS (all of them)
 
 ```bash
 git add src/AlienInvasion/Core/ZoneSerializer.cs tests/AlienInvasion.Core.Tests/ZoneSerializerTests.cs
-git commit -m "feat: ZoneSerializer ゾーン台帳の直列化/復元を追加"
+git commit -m "feat: add ZoneSerializer, serialising and restoring the zone ledger"
 ```
 
 ---
 
-## Task 5: Core — MovementMath（高度補間・イージング）
+## Task 5: Core - MovementMath (altitude interpolation and easing)
 
 **Files:**
 - Create: `src/AlienInvasion/Core/MovementMath.cs`
@@ -644,10 +644,10 @@ git commit -m "feat: ZoneSerializer ゾーン台帳の直列化/復元を追加"
 
 **Interfaces:**
 - Consumes: nothing
-- Produces（`static class MovementMath`, namespace `AlienInvasion.Core`）:
-  - `float EaseInOut(float t)` — `t`(0-1)を滑らかな加減速カーブに変換（`3t²-2t³`のスムーズステップ）。
-  - `float Lerp(float a, float b, float t)` — `t`を0-1にクランプして線形補間。
-  - `bool IsNear(float a, float b, float epsilon)` — 差が`epsilon`以下か（フェーズ2のトライポッド移動判定用に用意。本プランでは未使用だが公開APIとしてテストする）。
+- Produces, on `static class MovementMath` in the `AlienInvasion.Core` namespace:
+  - `float EaseInOut(float t)` - turns `t` in 0-1 into a smooth acceleration and deceleration curve, the `3t²-2t³` smoothstep.
+  - `float Lerp(float a, float b, float t)` - clamps `t` to 0-1 and interpolates linearly.
+  - `bool IsNear(float a, float b, float epsilon)` - whether the difference is within `epsilon`. This is for the tripod movement in Phase 2; it is unused in this plan but tested as part of the public API.
 
 - [ ] **Step 1: write the failing tests.**
 
@@ -706,7 +706,7 @@ public class MovementMathTests
 - [ ] **Step 2: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: FAIL（`MovementMath` 未定義）
+Expected: FAIL, `MovementMath` is not defined yet
 
 - [ ] **Step 3: implement.**
 
@@ -714,7 +714,7 @@ Expected: FAIL（`MovementMath` 未定義）
 ```csharp
 namespace AlienInvasion.Core
 {
-    /// <summary>母船/演出の座標補間に使う純粋な数学関数。</summary>
+    /// <summary>The pure maths used to interpolate the mothership's and the effects' positions.</summary>
     public static class MovementMath
     {
         public static float EaseInOut(float t)
@@ -750,12 +750,12 @@ Expected: PASS (all of them)
 
 ```bash
 git add src/AlienInvasion/Core/MovementMath.cs tests/AlienInvasion.Core.Tests/MovementMathTests.cs
-git commit -m "feat: MovementMath 高度補間/イージングを追加"
+git commit -m "feat: add MovementMath, the altitude interpolation and easing"
 ```
 
 ---
 
-## Task 6: Mod本体プロジェクト（csproj/AssemblyInfo/ModConfig/Mod）とビルド検証
+## Task 6: the mod project (csproj, AssemblyInfo, ModConfig, Mod) and verifying the build
 
 **Files:**
 - Create: `src/AlienInvasion/AlienInvasion.csproj`
@@ -768,10 +768,10 @@ git commit -m "feat: MovementMath 高度補間/イージングを追加"
 **Interfaces:**
 - Consumes: nothing
 - Produces:
-  - `static class ModConfig`（namespace `AlienInvasion.Game`）: 全定数（下記Step2で定義）+ `static void Log(string)` / `static void LogError(string)`。
-  - `class Mod : IUserMod`: `Name`, `Description`（get-only プロパティ）。
+  - `static class ModConfig` in the `AlienInvasion.Game` namespace: every constant, defined in Step 2 below, plus `static void Log(string)` and `static void LogError(string)`.
+  - `class Mod : IUserMod` with `Name` and `Description` as get-only properties.
 
-- [ ] **Step 1: csproj を作成**
+- [ ] **Step 1: create the csproj.**
 
 `src/AlienInvasion/AlienInvasion.csproj`:
 ```xml
@@ -825,7 +825,7 @@ git commit -m "feat: MovementMath 高度補間/イージングを追加"
 </Project>
 ```
 
-- [ ] **Step 2: AssemblyInfo と ModConfig を作成**
+- [ ] **Step 2: create AssemblyInfo and ModConfig.**
 
 `src/AlienInvasion/Properties/AssemblyInfo.cs`:
 ```csharp
@@ -852,27 +852,27 @@ namespace AlienInvasion.Game
         public const string MothershipPrefabName = "Mothership";
         public const string RedDecalPrefabName = "ContaminationDecal";
 
-        // --- 母船の飛行 ---
-        public const float MothershipStartAltitude = 800f;   // 出現高度(地表からの相対高さ)
-        public const float MothershipHoverAltitude = 220f;   // 降下後のホバリング高度
+        // --- The mothership's flight ---
+        public const float MothershipStartAltitude = 800f;   // the altitude it appears at, relative to the ground
+        public const float MothershipHoverAltitude = 220f;   // the altitude it hovers at once it has descended
         public const float DescendSeconds = 6f;
         public const float BombardSeconds = 10f;
         public const float StrikeIntervalSeconds = 0.6f;
         public const float AscendSeconds = 5f;
 
-        // --- クレーター/破壊(累積値。Bombarding中に徐々に成長し、終了時に確定) ---
+        // --- The crater and the destruction. These accumulate through Bombarding and settle when it ends. ---
         public const float CraterRadiusMax = 90f;
         public const float CraterDepthMax = 22f;
-        public const float StrikeScatterRadius = 15f;   // 落雷点を中心からランダムにずらす範囲
-        public const float DestructionRadius = 70f;     // Bombarding終了時に建物破壊する半径
+        public const float StrikeScatterRadius = 15f;   // how far each strike is scattered from the centre
+        public const float DestructionRadius = 70f;     // the radius buildings are destroyed within when Bombarding ends
 
-        // --- 汚染(赤) ---
+        // --- The red contamination ---
         public const int ExpiryYears = 1;
-        public const float ContaminationRadius = 90f;   // クレーター跡の汚染半径
+        public const float ContaminationRadius = 90f;   // the radius of the contamination left where the crater is
         public const byte MaxPollution = 255;
         public const float RedDecalYOffset = 0.3f;
 
-        // --- 発動 ---
+        // --- Triggering ---
         public const KeyCode ManualTriggerKey = KeyCode.F7;
         public const int RandomCheckIntervalTicks = 4096;
         public const int RandomChancePer10000 = 1;
@@ -890,7 +890,7 @@ namespace AlienInvasion.Game
 }
 ```
 
-- [ ] **Step 3: Mod.cs を作成**
+- [ ] **Step 3: create Mod.cs.**
 
 `src/AlienInvasion/Game/Mod.cs`:
 ```csharp
@@ -901,12 +901,12 @@ namespace AlienInvasion.Game
     public class Mod : IUserMod
     {
         public string Name => "Alien Invasion";
-        public string Description => "UFO母船が飛来し、雷とクレーターで街を破壊、放射能汚染を残します。手動発動キー: F7";
+        public string Description => "A UFO mothership descends, wrecks the city with lightning and a crater, and leaves radioactive contamination behind. Trigger it with the F7 key.";
     }
 }
 ```
 
-- [ ] **Step 4: ソリューションファイルを作成**
+- [ ] **Step 4: create the solution file.**
 
 `AlienInvasion.sln`:
 ```
@@ -925,7 +925,7 @@ Global
 EndGlobal
 ```
 
-- [ ] **Step 5: build.ps1 を作成（UTF-8 BOM 必須。日本語文字列を含むため）**
+- [ ] **Step 5: create build.ps1**, saved as UTF-8 with a BOM, since it contains non-ASCII text.
 
 `build.ps1`:
 ```powershell
@@ -947,46 +947,46 @@ New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
 $bundleSrc = "src\AlienInvasion\Assets\alieninvasion.bundle"
 if (Test-Path $bundleSrc) {
     Copy-Item $bundleSrc $bundleDir -Force
-    Write-Host "AssetBundle を配置しました"
+    Write-Host "Deployed the AssetBundle"
 } else {
-    Write-Host "警告: $bundleSrc が見つかりません。ビジュアル(母船/赤デカール)は起動時スキップされます。"
+    Write-Host "Warning: $bundleSrc not found. The visuals - the mothership and the red decals - will be skipped at startup."
 }
 Write-Host "Deploy complete: $modDir"
 ```
-このファイルは**必ずUTF-8 BOM付きで保存**すること（PowerShell 5.1が日本語文字列リテラルを正しく解釈するため。Nuclear Meltdown Modで実際に踏んだ問題）。
+This file **must be saved as UTF-8 with a BOM**, so PowerShell 5.1 reads its non-ASCII string literals correctly. This was hit for real in the Nuclear Meltdown mod.
 
-- [ ] **Step 6: `src/AlienInvasion/Assets/` ディレクトリを作成（AssetBundle配置場所のプレースホルダ）**
+- [ ] **Step 6: create the `src/AlienInvasion/Assets/` directory**, a placeholder for where the AssetBundle goes.
 
 ```bash
 mkdir -p src/AlienInvasion/Assets
 touch src/AlienInvasion/Assets/.gitkeep
 ```
 
-- [ ] **Step 7: ビルド検証**
+- [ ] **Step 7: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: the build succeeds.`AlienInvasion.dll` が生成され Modフォルダへコピーされる。`alieninvasion.bundle` はまだ存在しないため警告が出るが、これは想定どおり（Task 14で用意）。
+Expected: the build succeeds, `AlienInvasion.dll` is produced and copied into the mod folder. `alieninvasion.bundle` does not exist yet so a warning appears, which is expected; Task 14 provides it.
 
-- [ ] **Step 8: コミット**
+- [ ] **Step 8: commit.**
 
 ```bash
 git add src/AlienInvasion/AlienInvasion.csproj src/AlienInvasion/Properties src/AlienInvasion/Game/ModConfig.cs src/AlienInvasion/Game/Mod.cs src/AlienInvasion/Assets/.gitkeep AlienInvasion.sln build.ps1
-git commit -m "feat: Mod本体プロジェクト骨組みとビルド/配置スクリプトを追加"
+git commit -m "feat: add the mod project skeleton and the build and deploy script"
 ```
 
 ---
 
-## Task 7: AssetLoader（AssetBundleロード）
+## Task 7: AssetLoader (loading the AssetBundle)
 
 **Files:**
 - Create: `src/AlienInvasion/Game/AssetLoader.cs`
 
 **Interfaces:**
-- Consumes: `ModConfig`（Task 6）
-- Produces（`static class AssetLoader`, namespace `AlienInvasion.Game`）:
-  - `void Initialize(string modAssemblyDirectory)` — `.bundle` をロード（見つからなければログのみで継続）。
-  - `GameObject GetPrefab(string name)` — ロード済みprefabを名前で取得。無ければ `null`。
-  - `bool IsAvailable { get; }` — AssetBundleが正常にロードされたか。
+- Consumes `ModConfig` from Task 6
+- Produces, on `static class AssetLoader` in the `AlienInvasion.Game` namespace:
+  - `void Initialize(string modAssemblyDirectory)` - loads the `.bundle`, or just logs and carries on if it is not there.
+  - `GameObject GetPrefab(string name)` - fetches a loaded prefab by name, or `null` if there is none.
+  - `bool IsAvailable { get; }` - whether the AssetBundle loaded successfully.
 
 - [ ] **Step 1: implement.**
 
@@ -997,7 +997,7 @@ using UnityEngine;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>Mod同梱の AssetBundle から prefab をロードする。見つからない場合は静かにスキップ。</summary>
+    /// <summary>Loads the prefabs from the AssetBundle shipped with the mod, quietly skipping it if it is not there.</summary>
     public static class AssetLoader
     {
         private static AssetBundle _bundle;
@@ -1051,9 +1051,9 @@ namespace AlienInvasion.Game
 }
 ```
 
-- [ ] **Step 2: Mod.cs から Initialize を呼ぶよう更新**
+- [ ] **Step 2: update Mod.cs to call Initialize.**
 
-`src/AlienInvasion/Game/Mod.cs` を以下に置換:
+Replace `src/AlienInvasion/Game/Mod.cs` with:
 ```csharp
 using System.IO;
 using System.Reflection;
@@ -1064,7 +1064,7 @@ namespace AlienInvasion.Game
     public class Mod : IUserMod
     {
         public string Name => "Alien Invasion";
-        public string Description => "UFO母船が飛来し、雷とクレーターで街を破壊、放射能汚染を残します。手動発動キー: F7";
+        public string Description => "A UFO mothership descends, wrecks the city with lightning and a crater, and leaves radioactive contamination behind. Trigger it with the F7 key.";
 
         public void OnEnabled()
         {
@@ -1084,39 +1084,39 @@ Expected: the build succeeds.
 
 ```bash
 git add src/AlienInvasion/Game/AssetLoader.cs src/AlienInvasion/Game/Mod.cs
-git commit -m "feat: AssetLoader(AssetBundleロード)を追加"
+git commit -m "feat: add AssetLoader, which loads the AssetBundle"
 ```
 
 ---
 
-## Task 8: PollutionField と ContaminationManager（汚染読み書き＋ゾーン台帳）
+## Task 8: PollutionField and ContaminationManager (reading and writing the contamination, and the zone ledger)
 
 **Files:**
 - Create: `src/AlienInvasion/Game/PollutionField.cs`
 - Create: `src/AlienInvasion/Game/ContaminationManager.cs`
 
 **Interfaces:**
-- Consumes: `GridMath`, `ContaminationZone`（Core）, `ModConfig`
+- Consumes `GridMath` and `ContaminationZone` from Core, plus `ModConfig`
 - Produces:
   - `static class PollutionField`:
-    - `void ApplyMax(int cellIndex, byte intensity)` — セルの `m_pollution` を `Max(current, intensity)` に上げる。
-    - `void ClearCell(int cellIndex)` — `m_pollution = 0`。
-    - `void Refresh(int minX, int minZ, int maxX, int maxZ)` — `AreaModifiedB` 呼び出し。
+    - `void ApplyMax(int cellIndex, byte intensity)` - raises the cell's `m_pollution` to `Max(current, intensity)`.
+    - `void ClearCell(int cellIndex)` - sets `m_pollution` to 0.
+    - `void Refresh(int minX, int minZ, int maxX, int maxZ)` - calls `AreaModifiedB`.
   - `static class ContaminationManager`:
-    - `List<ContaminationZone> Zones { get; }`（スナップショットのコピーを返す）
-    - `void ReplaceAll(List<ContaminationZone> zones)`（ロード復元用）
-    - `void AddZone(ContaminationZone zone)` — 台帳へ追加し初回汚染を適用。
+    - `List<ContaminationZone> Zones { get; }` - returns a copy, as a snapshot.
+    - `void ReplaceAll(List<ContaminationZone> zones)` - used when restoring a save.
+    - `void AddZone(ContaminationZone zone)` - adds it to the ledger and applies the initial contamination.
     - `void RemoveZoneAt(int index)`
-    - `void ReassertZone(ContaminationZone zone)` — 半径内セルへ再度 `ApplyMax`（自然減衰対策）。
-    - `void ClearZone(ContaminationZone zone)` — 半径内セルを0にしてRefresh。
+    - `void ReassertZone(ContaminationZone zone)` - runs `ApplyMax` over the cells in the radius again, countering the natural decay.
+    - `void ClearZone(ContaminationZone zone)` - zeroes the cells in the radius and refreshes.
 
-- [ ] **Step 1: PollutionField を実装**
+- [ ] **Step 1: implement PollutionField.**
 
 `src/AlienInvasion/Game/PollutionField.cs`:
 ```csharp
 namespace AlienInvasion.Game
 {
-    /// <summary>NaturalResourceManager の土壌汚染セルへの読み書きラッパ。</summary>
+    /// <summary>A wrapper for reading and writing NaturalResourceManager's ground pollution cells.</summary>
     public static class PollutionField
     {
         public static void ApplyMax(int cellIndex, byte intensity)
@@ -1144,7 +1144,7 @@ namespace AlienInvasion.Game
 }
 ```
 
-- [ ] **Step 2: ContaminationManager を実装**
+- [ ] **Step 2: implement ContaminationManager.**
 
 `src/AlienInvasion/Game/ContaminationManager.cs`:
 ```csharp
@@ -1153,7 +1153,7 @@ using AlienInvasion.Core;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>汚染ゾーン台帳と、グリッドへの適用/維持/除去。</summary>
+    /// <summary>The contamination zone ledger, and applying, holding and clearing it on the grid.</summary>
     public static class ContaminationManager
     {
         private static List<ContaminationZone> _zones = new List<ContaminationZone>();
@@ -1223,21 +1223,21 @@ Expected: the build succeeds.
 
 ```bash
 git add src/AlienInvasion/Game/PollutionField.cs src/AlienInvasion/Game/ContaminationManager.cs
-git commit -m "feat: 汚染グリッド書込(PollutionField)とゾーン台帳(ContaminationManager)を追加"
+git commit -m "feat: add PollutionField for writing the pollution grid and ContaminationManager for the zone ledger"
 ```
 
 ---
 
-## Task 9: RedContaminationVisual（赤デカールの配置/撤去）
+## Task 9: RedContaminationVisual (placing and removing the red decals)
 
 **Files:**
 - Create: `src/AlienInvasion/Game/RedContaminationVisual.cs`
 
 **Interfaces:**
-- Consumes: `AssetLoader`, `ContaminationZone`（Core）, `ModConfig`
-- Produces（`static class RedContaminationVisual`）:
-  - `void Sync(List<ContaminationZone> activeZones)` — 現在のゾーン一覧に合わせてデカールGameObjectを生成/破棄。ゾーンごとに1つのデカールを`(CenterX, TerrainHeight, CenterZ)`に配置し、`Radius*2`にスケール。**メインスレッド専用**（GameObject操作のため）。
-  - `void Clear()` — 全デカールを破棄（Mod無効化/エラー時のクリーンアップ用）。
+- Consumes `AssetLoader` and `ContaminationZone` from Core, plus `ModConfig`
+- Produces, on `static class RedContaminationVisual`:
+  - `void Sync(List<ContaminationZone> activeZones)` - creates and destroys the decal GameObjects to match the current list of zones, placing one decal per zone at `(CenterX, TerrainHeight, CenterZ)` scaled to `Radius*2`. **Main thread only**, since it touches GameObjects.
+  - `void Clear()` - destroys every decal, for cleaning up when the mod is disabled or on an error.
 
 - [ ] **Step 1: implement.**
 
@@ -1251,8 +1251,8 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// 汚染ゾーンに対応する赤いデカールGameObjectを配置/撤去する。
-    /// GameObjectを直接操作するため、必ずメインスレッド(OnUpdate)から呼ぶこと。
+    /// Places and removes the red decal GameObjects that correspond to the contamination zones.
+    /// It touches GameObjects directly, so it must be called from the main thread, in OnUpdate.
     /// </summary>
     public static class RedContaminationVisual
     {
@@ -1333,7 +1333,7 @@ namespace AlienInvasion.Game
     }
 }
 ```
-注: `TerrainManager.SampleDetailHeight` は地形の高さを取得する標準API。ゾーンの一意キーは `(CenterX, CenterZ, StartTicks)` のハッシュとする（同一ゾーンが `ReplaceAll` 等でリスト内位置を変えても同じキーを保つため、インデックスではなく値ベース）。
+Note that `TerrainManager.SampleDetailHeight` is the standard API for the terrain height. A zone's unique key is a hash of `(CenterX, CenterZ, StartTicks)` - value-based rather than by index, so the same zone keeps the same key even when `ReplaceAll` or the like moves it within the list.
 
 - [ ] **Step 2: verify the build.**
 
@@ -1344,21 +1344,21 @@ Expected: the build succeeds.
 
 ```bash
 git add src/AlienInvasion/Game/RedContaminationVisual.cs
-git commit -m "feat: RedContaminationVisual 赤デカールの配置/撤去を追加"
+git commit -m "feat: add RedContaminationVisual, placing and removing the red decals"
 ```
 
 ---
 
-## Task 10: Effects（雷ボルト・閃光・雷鳴）
+## Task 10: Effects (the lightning bolts, the flash and the thunder)
 
 **Files:**
 - Create: `src/AlienInvasion/Game/Effects.cs`
 
 **Interfaces:**
 - Consumes: `ModConfig`
-- Produces（`static class Effects`）:
-  - `void PlayLightningStrike(Vector3 groundPoint, Vector3 skyPoint)` — **メインスレッド専用**。`groundPoint`と`skyPoint`を結ぶジグザグの`LineRenderer`ボルトを一瞬表示し、着弾点に隕石衝撃エフェクト（流用）を再生、`RainProperties.m_ThunderSound`を再生。
-  - 内部で生成した一時GameObject（ボルト）は再生後 `Object.Destroy(go, lifetime)` で自動破棄。
+- Produces, on `static class Effects`:
+  - `void PlayLightningStrike(Vector3 groundPoint, Vector3 skyPoint)` - **main thread only**. Shows a jagged `LineRenderer` bolt between `groundPoint` and `skyPoint` for a moment, plays the borrowed meteor impact effect where it lands, and plays `RainProperties.m_ThunderSound`.
+  - The temporary GameObject it creates for the bolt is destroyed afterwards with `Object.Destroy(go, lifetime)`.
 
 - [ ] **Step 1: implement.**
 
@@ -1369,7 +1369,7 @@ using UnityEngine;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>雷ボルト・着弾閃光・雷鳴の再生。全てメインスレッド(OnUpdate)から呼ぶこと。</summary>
+    /// <summary>Plays the lightning bolt, the impact flash and the thunder. All of it must be called from the main thread, in OnUpdate.</summary>
     public static class Effects
     {
         private const float BoltLifetime = 0.15f;
@@ -1474,28 +1474,28 @@ Expected: the build succeeds.
 
 ```bash
 git add src/AlienInvasion/Game/Effects.cs
-git commit -m "feat: Effects 雷ボルト/閃光/雷鳴の再生を追加"
+git commit -m "feat: add Effects, playing the lightning bolt, the flash and the thunder"
 ```
 
 ---
 
-## Task 11: Mothership と InvasionManager（状態機械の統括）
+## Task 11: Mothership and InvasionManager (the state machine that runs it all)
 
 **Files:**
 - Create: `src/AlienInvasion/Game/Mothership.cs`
 - Create: `src/AlienInvasion/Game/InvasionManager.cs`
 
 **Interfaces:**
-- Consumes: `AssetLoader`, `Effects`, `ContaminationManager`, `InvasionState`/`MovementMath`/`ContaminationZone`（Core）, `ModConfig`
+- Consumes `AssetLoader`, `Effects`, `ContaminationManager`, plus `InvasionState`, `MovementMath` and `ContaminationZone` from Core, and `ModConfig`
 - Produces:
-  - `class Mothership`: `Mothership(Vector3 targetPosition)` コンストラクタ、`void SetAltitude(float altitudeAboveTarget)`（メインスレッド：GameObject位置更新）、`Vector3 SkyPointForBolt()`、`void Destroy()`。プロパティ: `Vector3 Position`。
+  - `class Mothership`: the constructor `Mothership(Vector3 targetPosition)`, `void SetAltitude(float altitudeAboveTarget)` which updates the GameObject's position on the main thread, `Vector3 SkyPointForBolt()`, `void Destroy()` and the `Vector3 Position` property.
   - `static class InvasionManager`:
     - `bool IsActive { get; }`
-    - `void StartInvasion(Vector3 targetPosition)` — アイドル時のみ受理。
-    - `void UpdateVisual(float realTimeDelta)` — **メインスレッド専用**。母船の位置補間・フェーズ内タイマー進行・フェーズ遷移判定（Descending→Bombarding→Ascending→Done）を行う。
-    - `void UpdateSimulation()` — **シミュレーションスレッド専用**。現在`Bombarding`ならクレーター成長を行い、`Bombarding→Ascending`遷移の**直後1回だけ**建物破壊＋汚染ゾーン登録を行う。
+    - `void StartInvasion(Vector3 targetPosition)` - accepted only while idle.
+    - `void UpdateVisual(float realTimeDelta)` - **main thread only**. Interpolates the mothership's position, advances the phase timers and decides the phase transitions from Descending through Bombarding and Ascending to Done.
+    - `void UpdateSimulation()` - **simulation thread only**. Grows the crater while the state is `Bombarding`, and **exactly once**, right after the transition from `Bombarding` to `Ascending`, destroys the buildings and registers the contamination zone.
 
-- [ ] **Step 1: Mothership を実装**
+- [ ] **Step 1: implement Mothership.**
 
 `src/AlienInvasion/Game/Mothership.cs`:
 ```csharp
@@ -1503,7 +1503,7 @@ using UnityEngine;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>母船のGameObjectと位置。GameObject操作は全てメインスレッド(OnUpdate)から呼ぶこと。</summary>
+    /// <summary>The mothership's GameObject and position. Everything touching the GameObject must be called from the main thread, in OnUpdate.</summary>
     public class Mothership
     {
         private GameObject _gameObject;
@@ -1546,7 +1546,7 @@ namespace AlienInvasion.Game
 }
 ```
 
-- [ ] **Step 2: InvasionManager を実装**
+- [ ] **Step 2: implement InvasionManager.**
 
 `src/AlienInvasion/Game/InvasionManager.cs`:
 ```csharp
@@ -1556,11 +1556,12 @@ using UnityEngine;
 namespace AlienInvasion.Game
 {
     /// <summary>
-    /// 1回の襲来イベントの統括。
-    /// UpdateVisual: メインスレッド専用(GameObject操作・フェーズタイマー・状態遷移の書き込み元)。
-    /// UpdateSimulation: シミュレーションスレッド専用(DisasterHelpers/汚染書込)。
-    /// InvasionState/フェーズタイマーは UpdateVisual からのみ書き込む(single-writer)。
-    /// UpdateSimulation は状態を読むのみで書き込まない。
+    /// Runs a single invasion from start to finish.
+    /// UpdateVisual is main thread only: it touches GameObjects and is the sole writer of the
+    /// phase timers and the state transitions.
+    /// UpdateSimulation is simulation thread only: DisasterHelpers and writing the contamination.
+    /// InvasionState and the phase timers are written from UpdateVisual alone, so there is one
+    /// writer. UpdateSimulation only reads the state; it never writes it.
     /// </summary>
     public static class InvasionManager
     {
@@ -1570,7 +1571,7 @@ namespace AlienInvasion.Game
         private static float _phaseElapsed;
         private static float _strikeTimer;
         private static float _craterProgress; // 0..1
-        private static bool _bombardResolved;  // Bombarding終了時の建物破壊/汚染登録が完了したか
+        private static bool _bombardResolved;  // whether the destruction and contamination at the end of Bombarding are done
 
         public static bool IsActive
         {
@@ -1674,7 +1675,7 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>シミュレーションスレッドから毎tick呼ぶ。DisasterHelpers/汚染書込はここでのみ行う。</summary>
+        /// <summary>Called every tick from the simulation thread. DisasterHelpers and the contamination writes happen here and nowhere else.</summary>
         public static void UpdateSimulation()
         {
             try
@@ -1704,7 +1705,7 @@ namespace AlienInvasion.Game
         private static void ResolveBombardDamage()
         {
             int seed = (int)SimulationManager.instance.m_randomizer.Int32(1000000u);
-            // preRadius は totalRadius と同じ値にする(0だと何も破壊されないという既知の罠を回避)
+            // preRadius must equal totalRadius - the known trap is that 0 destroys nothing at all.
             DisasterHelpers.DestroyStuff(seed, null, _target, ModConfig.DestructionRadius, ModConfig.DestructionRadius, 0f,
                 ModConfig.DestructionRadius * 0.5f, ModConfig.DestructionRadius, ModConfig.DestructionRadius * 0.3f, ModConfig.DestructionRadius * 0.6f);
 
@@ -1716,7 +1717,7 @@ namespace AlienInvasion.Game
     }
 }
 ```
-注: `UpdateVisual` を `Idle` 状態の1フレームだけ `Done→Idle` に遷移させ、`IsActive` が正しく `false` に戻るようにしている（元のNextチェーンは `Done→Idle` だが、Doneに到達した直後の1回はメインスレッドのこの遷移を経由する必要がある）。
+Note that `UpdateVisual` makes the `Done` to `Idle` transition on a single `Idle` frame so `IsActive` returns to `false` correctly. The Next chain already runs `Done` to `Idle`, but the one step immediately after reaching Done has to go through this main-thread transition.
 
 - [ ] **Step 3: verify the build.**
 
@@ -1727,22 +1728,22 @@ Expected: the build succeeds.
 
 ```bash
 git add src/AlienInvasion/Game/Mothership.cs src/AlienInvasion/Game/InvasionManager.cs
-git commit -m "feat: Mothership と InvasionManager(状態機械)を追加"
+git commit -m "feat: add Mothership and InvasionManager, the state machine"
 ```
 
 ---
 
-## Task 12: InvasionThreadingExtension（発動・毎tick駆動・汚染維持/期限）
+## Task 12: InvasionThreadingExtension (triggering, driving it each tick, and the contamination upkeep and expiry)
 
 **Files:**
 - Create: `src/AlienInvasion/Game/Simulation/InvasionThreadingExtension.cs`
 
 **Interfaces:**
-- Consumes: `InvasionManager`, `ContaminationManager`, `RedContaminationVisual`, `ExpiryClock`（Core）, `ModConfig`
+- Consumes `InvasionManager`, `ContaminationManager`, `RedContaminationVisual`, `ExpiryClock` from Core, and `ModConfig`
 - Produces:
-  - `class InvasionThreadingExtension : ThreadingExtensionBase` — ゲームが自動検出。
-    - `OnUpdate(float realTimeDelta, float simulationTimeDelta)`（メインスレッド）: 手動キー検知 → `InvasionManager.StartInvasion`、`InvasionManager.UpdateVisual`、`RedContaminationVisual.Sync`。
-    - `OnAfterSimulationTick()`（シミュレーションスレッド）: `InvasionManager.UpdateSimulation`、ランダム発生抽選、汚染ゾーンの維持/期限処理。
+  - `class InvasionThreadingExtension : ThreadingExtensionBase`, found by the game on its own.
+    - `OnUpdate(float realTimeDelta, float simulationTimeDelta)`, main thread: watches for the manual key and calls `InvasionManager.StartInvasion`, then `InvasionManager.UpdateVisual` and `RedContaminationVisual.Sync`.
+    - `OnAfterSimulationTick()`, simulation thread: `InvasionManager.UpdateSimulation`, the random trigger roll, and the contamination zones' upkeep and expiry.
 
 - [ ] **Step 1: implement.**
 
@@ -1756,8 +1757,9 @@ using UnityEngine;
 namespace AlienInvasion.Game.Simulation
 {
     /// <summary>
-    /// 襲来の発動・進行・汚染維持を駆動する。
-    /// OnUpdate=メインスレッド(GameObject/入力)、OnAfterSimulationTick=シミュレーションスレッド(DisasterHelpers/汚染)。
+    /// Drives the invasion: triggering it, running it, and keeping the contamination in place.
+    /// OnUpdate is the main thread, for GameObjects and input; OnAfterSimulationTick is the
+    /// simulation thread, for DisasterHelpers and the contamination.
     /// </summary>
     public class InvasionThreadingExtension : ThreadingExtensionBase
     {
@@ -1800,7 +1802,7 @@ namespace AlienInvasion.Game.Simulation
 
         private static Vector3 PickManualTargetPosition()
         {
-            // カメラ中心の地表位置を狙う簡易実装
+            // A simple approach: aim at the ground position at the centre of the camera.
             Vector3 camPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
             return new Vector3(camPos.x, 0f, camPos.z);
         }
@@ -1815,7 +1817,7 @@ namespace AlienInvasion.Game.Simulation
             int roll = (int)SimulationManager.instance.m_randomizer.Int32(10000u);
             if (roll >= ModConfig.RandomChancePer10000) return;
 
-            const float half = 8500f; // マップ範囲の目安
+            const float half = 8500f; // roughly the extent of the map
             float x = (float)SimulationManager.instance.m_randomizer.Int32(0, (uint)(half * 2)) - half;
             float z = (float)SimulationManager.instance.m_randomizer.Int32(0, (uint)(half * 2)) - half;
             InvasionManager.StartInvasion(new Vector3(x, 0f, z));
@@ -1857,20 +1859,20 @@ Expected: the build succeeds.
 
 ```bash
 git add src/AlienInvasion/Game/Simulation/InvasionThreadingExtension.cs
-git commit -m "feat: InvasionThreadingExtension 発動/毎tick駆動/汚染維持を追加"
+git commit -m "feat: add InvasionThreadingExtension - triggering, the per-tick drive and the contamination upkeep"
 ```
 
 ---
 
-## Task 13: InvasionDataExtension（セーブ/ロード永続化）
+## Task 13: InvasionDataExtension (persisting across save and load)
 
 **Files:**
 - Create: `src/AlienInvasion/Game/Serialization/InvasionDataExtension.cs`
 
 **Interfaces:**
-- Consumes: `ContaminationManager`, `ZoneSerializer`（Core）, `ModConfig`
+- Consumes `ContaminationManager` and `ZoneSerializer` from Core, plus `ModConfig`
 - Produces:
-  - `class InvasionDataExtension : SerializableDataExtensionBase` — `OnSaveData()`/`OnLoadData()`。データキー `"AlienInvasion.Contamination.v1"`。ゲームが自動検出。
+  - `class InvasionDataExtension : SerializableDataExtensionBase` with `OnSaveData()` and `OnLoadData()`, under the data key `"AlienInvasion.Contamination.v1"`. Found by the game on its own.
 
 - [ ] **Step 1: implement.**
 
@@ -1882,7 +1884,7 @@ using ICities;
 
 namespace AlienInvasion.Game.Serialization
 {
-    /// <summary>汚染ゾーン台帳をセーブデータへ永続化する。ゲームが自動検出。</summary>
+    /// <summary>Persists the contamination zone ledger into the save game. Discovered by the game.</summary>
     public class InvasionDataExtension : SerializableDataExtensionBase
     {
         private const string DataId = "AlienInvasion.Contamination.v1";
@@ -1929,14 +1931,14 @@ Expected: the build succeeds.
 
 ```bash
 git add src/AlienInvasion/Game/Serialization/InvasionDataExtension.cs
-git commit -m "feat: 汚染ゾーンのセーブ/ロード永続化を追加"
+git commit -m "feat: persist the contamination zones across save and load"
 ```
 
 ---
 
-## Task 14: AssetBundleビルドパイプライン（Unity Editorスクリプト）とREADME
+## Task 14: the AssetBundle build pipeline (a Unity Editor script) and the README
 
-このタスクはユーザーが `models/source/models.blend` から `alieninvasion.bundle` を実際に作るための土台を用意する。Claudeは Unity Editor を実行できないため、**手順書＋Editorスクリプト**を成果物とする。
+This task lays the groundwork for the user to actually build `alieninvasion.bundle` from `models/source/models.blend`. The Unity Editor cannot be run from here, so what this produces is **a written procedure plus the Editor script**.
 
 **Files:**
 - Create: `unity-project/Assets/Editor/BuildAssetBundles.cs`
@@ -1944,9 +1946,9 @@ git commit -m "feat: 汚染ゾーンのセーブ/ロード永続化を追加"
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: なし（ツール/ドキュメント）
+- Produces nothing but tooling and documentation
 
-- [ ] **Step 1: BuildAssetBundles.cs を作成**
+- [ ] **Step 1: create BuildAssetBundles.cs.**
 
 `unity-project/Assets/Editor/BuildAssetBundles.cs`:
 ```csharp
@@ -1965,111 +1967,111 @@ public static class BuildAssetBundles
 }
 ```
 
-- [ ] **Step 2: README にAssetBundle制作手順を記載**
+- [ ] **Step 2: write the AssetBundle procedure into the README.**
 
 `src/AlienInvasion/README.md`:
 ```markdown
 # Alien Invasion (Cities: Skylines Mod)
 
-UFO母船が飛来し、雷を連打して地面にクレーターを形成、周辺の建物を破壊、放射能汚染(赤)をゲーム内1年残す。手動発動キー: **F7**（`Game/ModConfig.cs`の`ManualTriggerKey`で変更可）。ランダムでも低確率発生する。
+A UFO mothership descends, hammers the ground with lightning to form a crater, destroys the buildings around it and leaves red radioactive contamination for an in-game year. Trigger it with **F7**, which `ManualTriggerKey` in `Game/ModConfig.cs` can change. It also happens at random, rarely.
 
-## AssetBundle の作り方（Blenderモデル→ゲームで使える形式）
+## Building the AssetBundle (from the Blender model to a form the game can use)
 
-1. **Unity Editor 5.6.6f2** をインストール（[Unity Archive](https://unity3d.com/get-unity/download/archive) から取得。Cities: Skylines のエンジン(Unity 5.6.7)と互換のバージョン）。
-2. `models/source/models.blend` を Blender で開き、`MotherShip` と `TriPod`（本フェーズでは未使用）、赤いデカール用の平面オブジェクトをそれぞれ **FBX でエクスポート**。
-   - `MotherShip` のピボットは幾何中心（確認済み・修正不要）。
-   - デカール用オブジェクトは中心/接地面にピボットを置く。
-   - エクスポート前に `Ctrl+A → Scale` で各オブジェクトのスケールを適用しておく（未適用スケールが残ったままだとFBXインポート後の挙動が予測しにくくなるため）。
-3. `unity-project` を Unity Editor 5.6.6f2 で開く。
-4. エクスポートしたFBXを `unity-project/Assets/` にインポートし、マテリアル/テクスチャ（`_d`色/`_n`ノーマル/`_s`スペキュラ/`_i`自発光/`_a`透明）を設定。
-5. 各モデルを Prefab 化し、**Prefab名を正確に** `Mothership` / `ContaminationDecal` にする（`Game/ModConfig.cs` の `MothershipPrefabName`/`RedDecalPrefabName` と一致させる）。
-6. 各Prefabの Inspector で **AssetBundle名** を `alieninvasion` に設定（Prefab選択 → Inspector右下の AssetBundle ドロップダウン）。
-7. Unity メニュー **AlienInvasion → Build AssetBundle** を実行。
-8. `unity-project/AssetBundles/alieninvasion` というファイル（拡張子なし）が生成されるので、**`alieninvasion.bundle`** にリネームして `src/AlienInvasion/Assets/alieninvasion.bundle` に配置。
-9. `build.ps1` を再実行するとModフォルダへ自動配置される。
+1. Install **Unity Editor 5.6.6f2** from the [Unity Archive](https://unity3d.com/get-unity/download/archive). It is compatible with the Unity 5.6.7 engine Cities: Skylines runs on.
+2. Open `models/source/models.blend` in Blender and **export each as FBX**: `MotherShip`, `TriPod` (unused in this phase) and the plane for the red decal.
+   - `MotherShip`'s pivot is at its geometric centre; that has been checked and needs no change.
+   - Put the decal object's pivot at its centre, on the face that meets the ground.
+   - Apply each object's scale with `Ctrl+A` then Scale before exporting; an unapplied scale makes the behaviour after the FBX import hard to predict.
+3. Open `unity-project` in Unity Editor 5.6.6f2.
+4. Import the exported FBX files into `unity-project/Assets/` and set up the materials and textures: `_d` for colour, `_n` for the normal map, `_s` for specular, `_i` for emission and `_a` for transparency.
+5. Turn each model into a prefab and name them **exactly** `Mothership` and `ContaminationDecal`, matching `MothershipPrefabName` and `RedDecalPrefabName` in `Game/ModConfig.cs`.
+6. Set each prefab's **AssetBundle name** to `alieninvasion` in the Inspector - select the prefab, then use the AssetBundle dropdown at the bottom right.
+7. Run **AlienInvasion -> Build AssetBundle** from the Unity menu.
+8. That produces `unity-project/AssetBundles/alieninvasion` with no extension. Rename it to **`alieninvasion.bundle`** and put it at `src/AlienInvasion/Assets/alieninvasion.bundle`.
+9. Run `build.ps1` again and it is deployed into the mod folder.
 
-AssetBundleが無い状態でもModはビルド・起動でき、母船/デカールの視覚演出のみスキップされる（ログに `AssetBundle not found` と出る）。
+Without the AssetBundle the mod still builds and starts; only the mothership and decal visuals are skipped, and the log says `AssetBundle not found`.
 
-## ビルドと配置
+## Building and deploying
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
-`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\` に配置される。
+It deploys to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\`.
 
-## ゲーム内動作確認手順
-1. Content Manager → Mods で "Alien Invasion" を有効化。
-2. ゲーム内で **F7** を押す（または待ってランダム発生を確認）。
-3. 母船が降下 → 雷を連打しながらクレーターが形成される → 周辺建物が破壊される → 上昇して消える。
-4. 跡地に赤い汚染が残ることを確認（AssetBundle未配置の場合は標準の土壌汚染のみ）。
-5. ゲーム内1年経過で汚染が自動消滅することを確認。
-6. セーブ→ロードで汚染が維持されることを確認。
+## Verifying it in game
+1. Enable "Alien Invasion" under Mods in the Content Manager.
+2. Press **F7** in game, or wait and watch for the random trigger.
+3. The mothership descends, the lightning hammers down and the crater forms, the buildings around it are destroyed, and it ascends and vanishes.
+4. Confirm the red contamination is left behind. Without the AssetBundle in place, only the standard ground pollution shows.
+5. Confirm the contamination lifts on its own after an in-game year.
+6. Save and reload, and confirm the contamination is still there.
 
-## 設定
-定数は `Game/ModConfig.cs`（発動キー・確率・半径・時間等）。
+## Settings
+The constants live in `Game/ModConfig.cs`: the trigger key, the probabilities, the radii, the durations and so on.
 
-## ログ
-`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\` の output_log で `[AlienInvasion]` を検索。
+## Logs
+Search for `[AlienInvasion]` in the output log under `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\`.
 ```
 
 - [ ] **Step 3: commit.**
 
 ```bash
 git add unity-project/Assets/Editor/BuildAssetBundles.cs src/AlienInvasion/README.md
-git commit -m "docs: AssetBundleビルドパイプラインとREADMEを追加"
+git commit -m "docs: add the AssetBundle build pipeline and the README"
 ```
 
 ---
 
-## Task 15: 最終ビルド・全テスト・ゲーム内検証依頼
+## Task 15: the final build, the full test run, and asking for in-game verification
 
-**Files:** なし（検証のみ）
+**Files:** none; this is verification only
 
-- [ ] **Step 1: Coreの全テスト実行**
+- [ ] **Step 1: run every Core test.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: 全テストPASS（InvasionState/GridMath/ExpiryClock/ZoneSerializer/MovementMath 合計約28件）。
+Expected: every test passes - roughly 28 across InvasionState, GridMath, ExpiryClock, ZoneSerializer and MovementMath.
 
-- [ ] **Step 2: Mod本体の最終ビルド・配置**
+- [ ] **Step 2: the final build and deployment of the mod.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功、Modフォルダへ `AlienInvasion.dll` が配置。AssetBundle未配置なら警告ログが出るが正常（Task 14のパイプラインは別途ユーザーが実施）。
+Expected: the build succeeds and `AlienInvasion.dll` is deployed into the mod folder. Without the AssetBundle a warning is logged, which is normal; the user runs the Task 14 pipeline separately.
 
-- [ ] **Step 3: ゲーム内検証をユーザーへ依頼**
+- [ ] **Step 3: ask the user to verify it in game.**
 
-README の「ゲーム内動作確認手順」1-6 をユーザーに実施依頼。AssetBundleがまだ無い場合は「F7で発動→クレーターと建物破壊が起きるか」だけでもロジックの正しさを確認できる（母船/赤デカールの見た目は後日AssetBundle完成後に確認）。
+Ask the user to work through steps 1 to 6 of the README's in-game verification. Without the AssetBundle yet, pressing F7 and seeing whether the crater and the destruction happen is enough to confirm the logic; the mothership and the red decals can be checked once the AssetBundle is done.
 
-- [ ] **Step 4: 最終コミット**
+- [ ] **Step 4: the final commit.**
 
 ```bash
 git add -A
-git commit -m "chore: 最終ビルド・テスト確認"
+git commit -m "chore: final build and test verification"
 ```
 
 ---
 
 ## Self-Review
 
-**1. Spec coverage（設計書との対応）:**
-- 発動(手動＋ランダム) → Task 12 `InvasionThreadingExtension`（F7キー＋ランダム抽選） ✅
-- 母船降下→雷連打→クレーター形成→上昇消滅 → Task 11 `Mothership`/`InvasionManager` ✅
-- 雷エフェクト(ゲームに存在しないため自作) → Task 10 `Effects`（LineRenderer+隕石閃光流用+雷鳴流用、逆コンパイルで実在しないことを確認済み） ✅
-- 建物破壊 → Task 11 `ResolveBombardDamage`（`DisasterHelpers.DestroyStuff`、preRadius罠を回避） ✅
-- 赤い汚染(地面+エフェクト)、1年で消滅、除染施設なし → Task 8 `ContaminationManager`(1年のみ) + Task 9 `RedContaminationVisual`(赤デカール) ✅
-- AssetBundle同梱 → Task 7 `AssetLoader` + Task 14 パイプライン ✅
-- ModConfigで調整可能 → 全定数をTask 6 `ModConfig`に集約 ✅
-- セーブ/ロード → Task 13 `InvasionDataExtension` ✅
-- スレッド安全性(メイン/シミュレーション分離) → Global Constraints + 各タスクで明示 ✅
-- トライポッド(フェーズ2) → 本プランのスコープ外（別プランで実施、設計書どおり） ✅
+**1. Spec coverage, against the design document:**
+- Triggering, both manual and random: Task 12, `InvasionThreadingExtension`, with the F7 key and the random roll ✅
+- The mothership descending, the lightning, the crater forming and it ascending away: Task 11, `Mothership` and `InvasionManager` ✅
+- The lightning effect, built from scratch because the game has none: Task 10, `Effects`, using a LineRenderer plus the borrowed meteor flash and thunder. Decompiling confirmed no such effect exists ✅
+- Destroying buildings: Task 11, `ResolveBombardDamage`, using `DisasterHelpers.DestroyStuff` with the preRadius trap avoided ✅
+- The red contamination on the ground and as an effect, lifting after a year, with no decontamination facility: Task 8 `ContaminationManager`, which only handles the year, plus Task 9 `RedContaminationVisual` for the decals ✅
+- Shipping the AssetBundle: Task 7 `AssetLoader` plus the Task 14 pipeline ✅
+- Tunable through ModConfig: every constant gathered into Task 6's `ModConfig` ✅
+- Save and load: Task 13, `InvasionDataExtension` ✅
+- Thread safety, with the main and simulation threads kept apart: stated in the global constraints and in each task ✅
+- The tripods, Phase 2: out of scope here and covered by a separate plan, as the design document says ✅
 
-**2. Placeholder scan:** "TBD"/"後で"等の曖昧語なし。Task 14はUnity Editorを私が実行できないため手順書という性質上「ユーザーが行う」ものだが、これは仕様であり後回しではない（プレースホルダではない）。
+**2. Placeholder scan:** no vague wording such as "TBD" or "later". Task 14 is something the user carries out, because the Unity Editor cannot be run from here and it is a written procedure by nature - that is the design, not something deferred, and not a placeholder.
 
 **3. Type consistency:**
-- `ContaminationZone(float,float,float,long)` — Task1定義、Task4/8/9/11/12/13利用で一致。
-- `GridMath.CellsInRadius(float,float,float)→List<int>` — Task2定義、Task8利用で一致。
-- `ExpiryClock.HasExpired(long,long,int)` — Task3定義、Task12利用で一致。
-- `ZoneSerializer.Serialize/Deserialize` — Task4定義、Task13利用で一致。
-- `MovementMath.EaseInOut/Lerp/IsNear` — Task5定義、Task11で`EaseInOut`/`Lerp`を利用。`IsNear`はフェーズ2向けに用意した公開APIで、テストで検証済みのため未使用コード扱いにはならない。
-- `InvasionManager.StartInvasion(Vector3)`/`IsActive`/`UpdateVisual(float)`/`UpdateSimulation()` — Task11定義、Task12利用で一致。
-- `Mothership.SetAltitude(float)`/`SkyPointForBolt()`/`Destroy()`/`Position` — Task11内で定義・利用で一致（Step2修正時に`UpdateVisual`のコンストラクタ引数呼び出しをコンストラクタ内`SetAltitude`ではなく直接位置代入に整理し、`Position`プロパティのみで到達判定を行う設計に統一）。
-- `AssetLoader.Initialize(string)`/`GetPrefab(string)`/`IsAvailable` — Task7定義。Task9/11で`GetPrefab`利用、名前一致。`IsAvailable`は将来の分岐用に公開APIとして用意。
+- `ContaminationZone(float,float,float,long)` - defined in Task 1 and used consistently in Tasks 4, 8, 9, 11, 12 and 13.
+- `GridMath.CellsInRadius(float,float,float)` returning `List<int>` - defined in Task 2 and used consistently in Task 8.
+- `ExpiryClock.HasExpired(long,long,int)` - defined in Task 3 and used consistently in Task 12.
+- `ZoneSerializer.Serialize` and `Deserialize` - defined in Task 4 and used consistently in Task 13.
+- `MovementMath.EaseInOut`, `Lerp` and `IsNear` - defined in Task 5, with `EaseInOut` and `Lerp` used in Task 11. `IsNear` is public API prepared for Phase 2 and is covered by tests, so it does not count as dead code.
+- `InvasionManager.StartInvasion(Vector3)`, `IsActive`, `UpdateVisual(float)` and `UpdateSimulation()` - defined in Task 11 and used consistently in Task 12.
+- `Mothership.SetAltitude(float)`, `SkyPointForBolt()`, `Destroy()` and `Position` - defined and used consistently within Task 11. The Step 2 revision changed the constructor to assign the position directly rather than calling `SetAltitude` from within it, and settled on the `Position` property alone for the arrival test.
+- `AssetLoader.Initialize(string)`, `GetPrefab(string)` and `IsAvailable` - defined in Task 7, with `GetPrefab` used under the same name in Tasks 9 and 11. `IsAvailable` is public API kept for future branching.
 </parameter>
