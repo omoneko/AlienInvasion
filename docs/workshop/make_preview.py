@@ -12,8 +12,8 @@ BANNER = os.path.join(WS, "cover-tripods.png")  # bottom panel: the tripod attac
 OUT = os.path.join(WS, "preview.png")
 
 W = H = 1024
-HERO_H = 616          # 上パネル(UFO)の高さ
-BAND_H = 30           # ハザード帯
+HERO_H = 616          # height of the top panel, the mothership
+BAND_H = 30           # height of the hazard band
 
 def load_font(names, size):
     for n in names:
@@ -27,7 +27,7 @@ f_small = load_font(["arialbd.ttf", "arial.ttf"], 34)
 f_chip = load_font(["arialbd.ttf", "arial.ttf"], 28)
 
 def cover(img, w, h, bias="center"):
-    """w×hをカバーするよう拡大し、bias('center'|'top')でクロップ。"""
+    """Scale to cover w by h, then crop according to bias, which is 'center' or 'top'."""
     iw, ih = img.size
     scale = max(w / iw, h / ih)
     nw, nh = int(iw * scale + 0.5), int(ih * scale + 0.5)
@@ -38,11 +38,11 @@ def cover(img, w, h, bias="center"):
 
 canvas = Image.new("RGB", (W, H), (8, 8, 12))
 
-# --- 上パネル: UFO母船 ---
+# --- Top panel: the mothership ---
 hero = cover(Image.open(HERO).convert("RGB"), W, HERO_H, bias="center")
 canvas.paste(hero, (0, 0))
 
-# タイトル可読性のための暗色グラデーション(左下を暗く)
+# A dark gradient, heaviest at the bottom left, so the title stays readable
 ov = Image.new("RGBA", (W, HERO_H), (0, 0, 0, 0))
 od = ImageDraw.Draw(ov)
 for y in range(HERO_H):
@@ -53,11 +53,11 @@ for x in range(W):
     od.line([(x, int(HERO_H * 0.38)), (x, HERO_H)], fill=(3, 4, 10, min(a, 140)))
 canvas.paste(Image.alpha_composite(canvas.crop((0, 0, W, HERO_H)).convert("RGBA"), ov).convert("RGB"), (0, 0))
 
-# --- 下パネル: トライポッド襲撃バナー ---
+# --- Bottom panel: the banner of tripods attacking ---
 banner = cover(Image.open(BANNER).convert("RGB"), W, H - (HERO_H + BAND_H), bias="top")
 canvas.paste(banner, (0, HERO_H + BAND_H))
 
-# --- ハザード帯(黄×黒の斜めストライプ) ---
+# --- Hazard band: diagonal yellow and black stripes ---
 band = Image.new("RGB", (W, BAND_H), (242, 194, 0))
 bd = ImageDraw.Draw(band)
 sw = 34
@@ -67,7 +67,7 @@ canvas.paste(band, (0, HERO_H))
 
 draw = ImageDraw.Draw(canvas)
 
-# --- UFOアイコン ---
+# --- The mothership icon ---
 icx, icy = 100, 496
 glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
 gd = ImageDraw.Draw(glow)
@@ -81,7 +81,7 @@ draw.ellipse([icx-14, icy-8, icx+14, icy+8], fill=(255, 70, 45), outline=(255, 2
 draw.ellipse([icx-60, icy-3, icx-44, icy+7], fill=(210, 40, 30))
 draw.ellipse([icx+44, icy-3, icx+60, icy+7], fill=(210, 40, 30))
 
-# --- タイトル文字 ---
+# --- Title text ---
 tx = 205
 GREEN = (128, 236, 58)
 draw.text((tx+2, 352), "Cities: Skylines Mod", font=f_small, fill=(235, 235, 240),
@@ -91,7 +91,7 @@ draw.text((tx, 386), "ALIEN", font=f_title, fill=(255, 255, 255),
 draw.text((tx, 492), "INVASION", font=f_title, fill=GREEN,
           stroke_width=6, stroke_fill=(0, 0, 0))
 
-# --- 下バナーのラベルチップ ---
+# --- Label chip on the bottom banner ---
 chip = "TRIPOD ASSAULT"
 cw = draw.textlength(chip, font=f_chip)
 cx, cy = 18, H - 46
