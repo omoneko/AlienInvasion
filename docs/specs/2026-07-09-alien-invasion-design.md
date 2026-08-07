@@ -1,146 +1,193 @@
-# Alien Invasion Mod 設計書
+# Alien Invasion mod - design
 
-- 日付: 2026-07-09
-- 対象: Cities: Skylines（初代 / Unity / .NET Framework 3.5）
-- ステータス: 設計承認済み（実APIは計画フェーズで逆コンパイル検証）
+- Date: 2026-07-09
+- Target: Cities: Skylines (2015 / Unity / .NET Framework 3.5)
+- Status: design approved; the real APIs to be verified by decompiling during the planning phase
 
-## 1. 概要
+## 1. Overview
 
-SimCity 4 のエイリアン襲来をオマージュした災害Mod。**手動（召喚ツール）**または**ランダム**で発動し、以下を順に演出する:
+A disaster mod paying homage to the alien invasion from SimCity 4. It is triggered **by hand,
+through a summon tool**, or **at random**, and plays out in this order:
 
-1. UFO母船が上空から目標地点へ降下
-2. 母船が雷を連打し、直下に陥没（クレーター）を形成
-3. 母船が上昇して消滅
-4. トライポッド型小型宇宙船が3体出現
-5. トライポッドがランダムに自由移動し、進行方向付近の建物をビームで局所破壊（1回で数棟程度）
-6. トライポッドは一定時間後に消滅
-7. クレーターおよびトライポッドの通過跡に**赤い汚染**を**ゲーム内1年**残す（赤い地面＋赤い発光エフェクト）
+1. The mothership descends from high above towards the target.
+2. It strikes repeatedly with lightning, opening a crater directly beneath it.
+3. The mothership climbs away and disappears.
+4. Three tripod-shaped craft appear.
+5. The tripods roam freely at random, destroying a few buildings at a time with their beams,
+   near where they are heading.
+6. The tripods disappear after a set time.
+7. The crater and the tripods' trails are left **red with contamination for one in-game year** -
+   red ground plus a red glow.
 
-自作3Dモデル（UFO・トライポッド・赤デカール）は **AssetBundle** としてMODに同梱する。
+The custom 3D models - the mothership, the tripods and the red decal - ship with the mod inside
+an **AssetBundle**.
 
-## 2. 方針
+## 2. Approach
 
-**Mod主導方式（方式A）**: 自作モデルを AssetBundle から読み込み GameObject として生成し、**Mod が毎tick 位置・向きを直接制御**する。道路や経路探索に縛られない自由な飛行/歩行を実現。破壊・エフェクト・汚染は Nuclear Meltdown で確立した `DisasterHelpers` / エフェクト / `NaturalResourceManager` を流用。
+**Mod-driven (option A)**: the custom models are loaded from the AssetBundle, created as
+GameObjects, and **the mod drives their position and heading directly every tick**. That gives
+flight and movement free of the road network and of pathfinding. Destruction, effects and
+contamination reuse the `DisasterHelpers`, effect handling and `NaturalResourceManager` work
+already established in Nuclear Meltdown.
 
-Vehicle/VehicleAI 方式（方式B）は道路前提の経路探索が絡み不採用。
+The Vehicle/VehicleAI route (option B) was rejected: it drags in road-based pathfinding.
 
-## 3. 技術要件
+## 3. Technical requirements
 
-- 言語/FW: C# / .NET Framework 3.5、MSBuild でビルド
-- 参照: `ICities.dll`, `Assembly-CSharp.dll`, `UnityEngine.dll`, `ColossalManaged.dll`
-- Harmony: NuGet `CitiesHarmony.API`
-- **AssetBundle**: CS と同一の Unity バージョンでビルド（バージョンは計画時に特定）。UFO・トライポッド・赤デカールの prefab を格納
-- 配置先: `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\`
-- インターフェース: `ICities.IUserMod`
+- Language and framework: C# on .NET Framework 3.5, built with MSBuild
+- References: `ICities.dll`, `Assembly-CSharp.dll`, `UnityEngine.dll`, `ColossalManaged.dll`
+- Harmony: the `CitiesHarmony.API` NuGet package
+- **AssetBundle**: built with the same Unity version the game uses, to be identified during
+  planning. It holds the prefabs for the mothership, the tripods and the red decal.
+- Deployed to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\`
+- Interface: `ICities.IUserMod`
 
-## 4. アーキテクチャ
+## 4. Architecture
 
 ```
 AlienInvasion/
 ├─ AlienInvasion.csproj
-├─ Assets/alieninvasion.bundle           # UFO・トライポッド・赤デカールのprefab
-├─ Core/  (Unity非依存・xUnitでテスト)
-│   ├─ InvasionState.cs                   # 状態機械 enum ＋遷移ロジック
-│   ├─ MovementMath.cs                    # ランダム歩行方向・座標補間・境界クランプ
-│   ├─ GridMath.cs                        # ワールド→汚染セル変換・半径/軌跡のセル列挙
-│   ├─ ContaminationZone.cs               # 汚染ゾーン(中心/半径/開始時刻)
-│   └─ ZoneSerializer.cs                  # 汚染ゾーンの byte[] 直列化
-└─ Game/  (ゲーム統合層)
-    ├─ Mod.cs                             # IUserMod + Harmony + AssetBundleロード
-    ├─ ModConfig.cs                       # 定数(時間/半径/確率/1年/3体 等・調整可)
-    ├─ AssetLoader.cs                     # AssetBundleから prefab 取得
-    ├─ InvasionTrigger.cs                 # 手動ツール(ボタン) ＋ ランダム発生タイマー
-    ├─ InvasionManager.cs                 # アクティブな襲来の統括(状態機械の駆動)
-    ├─ Mothership.cs                      # 降下→雷連打→クレーター→上昇消滅
-    ├─ Tripod.cs                          # 出現→ランダム移動→ビーム破壊→消滅
-    ├─ Effects.cs                         # 雷/ビーム/爆発/赤発光エフェクトの解決・再生
-    ├─ RedContaminationVisual.cs          # 赤デカール(プロップ)の配置/撤去
-    ├─ ContaminationManager.cs            # 汚染ゾーン台帳＋適用/維持/クリア
-    ├─ PollutionField.cs                  # NaturalResourceManagerへの汚染読み書き
-    ├─ Simulation/InvasionThreadingExtension.cs   # 毎tickで襲来と汚染を駆動
-    └─ Serialization/InvasionDataExtension.cs     # 汚染ゾーン台帳をセーブ/ロード（襲来状態は非永続・レベルロード時にリセット）
+├─ Assets/alieninvasion.bundle           # prefabs: mothership, tripods, red decal
+├─ Core/  (no Unity dependency, tested with xUnit)
+│   ├─ InvasionState.cs                   # the state enum and the transition logic
+│   ├─ MovementMath.cs                    # random walk directions, interpolation, clamping to bounds
+│   ├─ GridMath.cs                        # world to pollution cell, and enumerating cells by radius or trail
+│   ├─ ContaminationZone.cs               # a contamination zone: centre, radius, start time
+│   └─ ZoneSerializer.cs                  # serialises the zones to byte[]
+└─ Game/  (the game integration layer)
+    ├─ Mod.cs                             # IUserMod, Harmony, loading the AssetBundle
+    ├─ ModConfig.cs                       # constants: durations, radii, probabilities, one year, three tripods
+    ├─ AssetLoader.cs                     # fetches the prefabs from the AssetBundle
+    ├─ InvasionTrigger.cs                 # the manual tool plus the random timer
+    ├─ InvasionManager.cs                 # coordinates the active invasion and drives the state machine
+    ├─ Mothership.cs                      # descend, strike, crater, climb away
+    ├─ Tripod.cs                          # appear, roam, destroy with the beam, disappear
+    ├─ Effects.cs                         # resolves and plays the lightning, beam, explosion and red glow
+    ├─ RedContaminationVisual.cs          # places and removes the red decal props
+    ├─ ContaminationManager.cs            # the zone ledger, and applying, holding and clearing it
+    ├─ PollutionField.cs                  # reads and writes NaturalResourceManager's pollution
+    ├─ Simulation/InvasionThreadingExtension.cs   # drives the invasion and the contamination each tick
+    └─ Serialization/InvasionDataExtension.cs     # saves and loads the zone ledger; the invasion state is not persisted and resets on level load
 ```
 
-依存の向き: `Game/* → Core/*`（一方向）。`Core/*` は他に依存しない。
+Dependencies point one way: `Game/*` depends on `Core/*`, and `Core/*` depends on nothing else.
 
-## 5. イベントの流れ（状態機械）
+## 5. The sequence of events (state machine)
 
 `InvasionState`:
 ```
 Descending → Bombarding → Ascending → TripodDeploy → TripodsActive → Done
 ```
-`InvasionThreadingExtension` が毎tickで `InvasionManager.Update()` を呼び、タイマー・位置補間・各処理を進める。フェーズ1では `Descending→Bombarding→Ascending→Done`（トライポッドは Done へスキップ）、フェーズ2でトライポッド段階を実装。
+`InvasionThreadingExtension` calls `InvasionManager.Update()` every tick, advancing the timers,
+the interpolation and everything else. Phase 1 covers `Descending → Bombarding → Ascending →
+Done`, skipping past the tripods; phase 2 implements the tripod states.
 
-## 6. 発動（手動＋ランダム）
+## 6. Triggering (by hand and at random)
 
-- **手動**: 専用ボタン/ツールで地図上の地点を選び発動（`InvasionManager.StartInvasion(position)`）。
-- **ランダム**: `InvasionThreadingExtension` が一定期間ごとに低確率で抽選し、マップ上のランダム地点で発動。頻度・ON/OFF は `ModConfig` で設定。乱数はゲームの決定論RNG(`SimulationManager.m_randomizer`)。
-- ※CSの正規ランダム災害枠への登録は複雑なため、Mod主導の抽選で実現。
+- **By hand**: a dedicated button or tool picks a point on the map and starts it, through
+  `InvasionManager.StartInvasion(position)`.
+- **At random**: `InvasionThreadingExtension` draws at a low probability every so often and
+  starts one at a random point on the map. The frequency, and whether it happens at all, are set
+  in `ModConfig`. The randomness uses the game's deterministic RNG,
+  `SimulationManager.m_randomizer`.
+- Registering as one of CS's own random disasters is complicated, so the draw is done by the mod
+  instead.
 
-## 7. 母船（フェーズ1）
+## 7. The mothership (phase 1)
 
-- AssetBundle の UFO prefab を上空（目標地点の高高度）に GameObject 生成。
-- **降下**: Y座標を hover 高度まで補間（`ModConfig.DescendSeconds`）。
-- **雷連打（Bombarding）**: 一定tickごとに直下のランダム点へ雷エフェクトを再生し、少しずつ陥没を形成（累積で `DisasterHelpers.MakeCrater`）＋直下範囲の建物を破壊。継続時間 `ModConfig.BombardSeconds`。
-- 終了後 **上昇**（Y補間）して GameObject 破棄。
-- クレーター地点に **赤い汚染ゾーン（1年）** を登録。
+- The mothership prefab from the AssetBundle is created as a GameObject high above the target.
+- **Descent**: the Y coordinate is interpolated down to the hover altitude, over
+  `ModConfig.DescendSeconds`.
+- **Bombarding**: every so many ticks, a lightning effect plays at a random point directly below
+  and the crater deepens a little, accumulating through `DisasterHelpers.MakeCrater`, while the
+  buildings beneath are destroyed. This lasts `ModConfig.BombardSeconds`.
+- Afterwards it **climbs**, again by interpolating Y, and the GameObject is destroyed.
+- A **red contamination zone lasting one year** is registered at the crater.
 
-## 8. トライポッド（フェーズ2）
+## 8. The tripods (phase 2)
 
-- 母船消滅後、クレーター付近に **3体**（`ModConfig.TripodCount`）を GameObject 生成。
-- 毎tick: 各体を現在のランダム方向へ `ModConfig.TripodSpeed` で移動。一定間隔でランダムに方向転換。マップ境界でクランプ/反射。
-- **ビーム破壊**: `ModConfig.BeamIntervalTicks` ごとに、進行方向付近の建物を **局所的に破壊**（`DisasterHelpers.DestroyBuildings` を小半径 or `CollapseBuilding`、1回で数棟）＋ビームエフェクト。
-- **軌跡汚染**: 一定間隔で現在位置に小さな赤い汚染ゾーンをスタンプ。
-- 活動時間 `ModConfig.TripodActiveSeconds` 後に消滅（GameObject破棄）。
+- Once the mothership is gone, **three** of them (`ModConfig.TripodCount`) are created as
+  GameObjects near the crater.
+- Each tick every tripod moves in its current random direction at `ModConfig.TripodSpeed`, turning
+  at random intervals and clamping or reflecting at the map bounds.
+- **Beam destruction**: every `ModConfig.BeamIntervalTicks`, a few buildings near where it is
+  heading are **destroyed locally** - `DisasterHelpers.DestroyBuildings` with a small radius, or
+  `CollapseBuilding` - along with a beam effect.
+- **Contaminated trail**: a small red contamination zone is stamped at the current position at
+  regular intervals.
+- After `ModConfig.TripodActiveSeconds` they disappear and their GameObjects are destroyed.
 
-## 9. 汚染と赤い演出
+## 9. Contamination and the red presentation
 
-- `ContaminationManager` / `PollutionField` / `ZoneSerializer` を Nuclear Meltdown から流用。
-- **消滅条件**: 「ゲーム内1年経過」のみ（`ModConfig.ExpiryYears = 1`）。**除染施設は無し**。
-- 自然減衰に抗って毎tick再アサートし、1年で解除。
-- **赤い地面**: CS標準の土壌汚染は色固定のため、AssetBundle の **赤い汚染デカール(平面プロップ)** を汚染セル上に `RedContaminationVisual` が配置し、ゾーン解除時に撤去。
-- **赤いエフェクト**: 汚染域に赤い発光/もやのエフェクトを持続表示。
-- ゲーム的効果（地価下落等）が必要なら、赤デカールと併せて標準の土壌汚染も裏で適用（`PollutionField`）。
-- ※赤化の正確なレンダリング手法（プロップ/デカール配置API、エフェクトの色指定）は計画フェーズで実API検証。
+- `ContaminationManager`, `PollutionField` and `ZoneSerializer` are reused from Nuclear Meltdown.
+- **It lifts on one condition only**: one in-game year passing (`ModConfig.ExpiryYears = 1`).
+  **There is no decontamination facility.**
+- It is reasserted every tick against the natural decay, and released after a year.
+- **Red ground**: CS's own ground pollution has a fixed colour, so `RedContaminationVisual`
+  places the **red contamination decal** - a flat prop from the AssetBundle - over the polluted
+  cells and removes it when the zone is released.
+- **Red effect**: a red glow or haze is kept up over the contaminated area.
+- If the gameplay consequences matter - land value falling, and so on - the standard ground
+  pollution is applied underneath as well, through `PollutionField`.
+- Exactly how the red is rendered - the API for placing props or decals, and whether an effect's
+  colour can be set - is to be verified against the real APIs during planning.
 
-## 10. 永続化・安全性
+## 10. Persistence and safety
 
-- 汚染ゾーン台帳のみ `ISerializableData` でセーブ/ロード保持。進行中の襲来状態(InvasionManager)は
-  フェーズ1では永続化せず、レベルロード毎に `InvasionManager.ResetForNewLevel()` で強制的に
-  Idle へリセットする（別セーブへの切り替え時に旧レベルの残留状態が誤って作用しないための
-  意図的な簡略化。再開ではなく破棄）。
-- 全 tick / 生成 / エフェクト / 直列化処理は try/catch で保護し、例外をゲーム本体へ伝播させない。
-- **AssetBundle / prefab が読めない場合**: ログを出して該当演出をスキップ（ゲームを巻き込まない）。
-- console 出力は残さず、ログは `Debug.Log` に接頭辞 `[AlienInvasion]` を付けてのみ。
+- Only the contamination zone ledger is saved and restored, through `ISerializableData`. An
+  invasion in progress is not persisted in phase 1: every level load forces it back to Idle
+  through `InvasionManager.ResetForNewLevel()`. This is a deliberate simplification that stops
+  a previous level's leftover state interfering after switching saves - it is discarded rather
+  than resumed.
+- Every tick, creation, effect and serialisation path is wrapped in try/catch, so no exception
+  propagates into the game.
+- **If the AssetBundle or a prefab cannot be read**: it is logged and that piece of the
+  presentation is skipped, without taking the game with it.
+- No console output is left behind; logging goes through `Debug.Log` with the `[AlienInvasion]`
+  prefix only.
 
-## 11. 3Dモデル要件（Blender作業向け）
+## 11. 3D model requirements (for the Blender work)
 
-- **UFO母船**: 巨大円盤（インディペンデンス・デイ級の“サイズ感”）、ローポリ＋LOD、`_d/_n/_s/_i/_a` テクスチャ、ピボット中心。
-- **トライポッド**: 三脚歩行体、ローポリ＋LOD、ピボット接地点。
-- **赤い汚染デカール**: 単純な赤い平面（半透明可）、1枚。
-- 制作: Blender → FBX → （Vehicle系は Asset Editor 参考、ただし本Modは AssetBundle 同梱）→ Unity で **AssetBundle 化**（CSと同一Unityバージョン）。
+- **Mothership**: an enormous disc, on the scale of the one from Independence Day. Low poly with
+  LODs, `_d/_n/_s/_i/_a` textures, pivot at the centre.
+- **Tripod**: a three-legged walker. Low poly with LODs, pivot at ground level.
+- **Red contamination decal**: a single simple red plane, translucency allowed.
+- Production: Blender to FBX, then **into an AssetBundle** in Unity, using the same Unity version
+  as CS. (The asset editor is a useful reference for vehicles, but this mod ships its own
+  bundle.)
 
-## 12. 実装フェーズ
+## 12. Implementation phases
 
-- **フェーズ1（母船）**: プロジェクト骨組み＋AssetBundleロード → 発動(手動＋ランダム) → 母船降下 → 雷連打＋クレーター → 上昇消滅 → 赤い汚染(1年) → セーブ/ロード。
-- **フェーズ2（トライポッド）**: 3体出現 → ランダム移動＋局所ビーム破壊 → 軌跡の赤い汚染 → 消滅。
+- **Phase 1 (mothership)**: the project skeleton and AssetBundle loading, triggering by hand and
+  at random, the descent, the lightning and crater, the climb away, the red contamination lasting
+  a year, and saving and loading.
+- **Phase 2 (tripods)**: three appear, roam and destroy locally with their beams, leave a red
+  trail, and disappear.
 
-## 13. テスト方針
+## 13. Testing
 
-- Core（状態遷移・ランダム歩行・境界クランプ・セル計算・直列化）は xUnit で TDD。
-- ゲーム統合層は MSBuild ビルド成功＋実機確認（ユニットテスト不可）。
-- 逆コンパイルで検証する実API: `DisasterHelpers.MakeCrater/DestroyBuildings`、`NaturalResourceManager`、エフェクト再生、AssetBundle ロード、プロップ/デカール配置、`ISerializableData`/`IThreadingExtension`、雷エフェクトの入手元。
+- Core - the transitions, the random walk, clamping to bounds, the cell maths and serialisation -
+  is written test-first with xUnit.
+- The game integration layer is covered by a successful MSBuild plus verification in game; it
+  cannot be unit tested.
+- APIs to verify by decompiling: `DisasterHelpers.MakeCrater` and `DestroyBuildings`,
+  `NaturalResourceManager`, playing effects, loading an AssetBundle, placing props and decals,
+  `ISerializableData` and `IThreadingExtension`, and where the lightning effect comes from.
 
-## 14. 未確定事項（計画フェーズで解消）
+## 14. Open questions (to be resolved during planning)
 
-- ~~CS の正確な Unity バージョン（AssetBundle ビルド用）。~~ **解消**: `Cities.exe` 実体は Unity 5.6.7 ビルド（FileVersion 5.6.7.3267）。コミュニティ標準(cslmodding.info)は AssetBundle 作成に Unity Editor 5.6.6 を案内。5.6.x系は相互互換のため **Unity 5.6.6f2** を採用。
-- 雷エフェクトの入手元（既存 EffectInfo にあるか、自作が必要か）。
-- 赤デカール/プロップの配置・撤去API（`PropManager` 経由等）。
-- エフェクトの色指定（赤）が可能か、または赤い自作エフェクトが必要か。
-- トライポッドのビーム破壊の具体半径・棟数のバランス。
+- ~~The exact Unity version CS uses, for building the AssetBundle.~~ **Resolved**: `Cities.exe`
+  is a Unity 5.6.7 build (FileVersion 5.6.7.3267). The community standard (cslmodding.info)
+  recommends Unity Editor 5.6.6 for building AssetBundles, and the 5.6.x releases are compatible
+  with each other, so **Unity 5.6.6f2** it is.
+- Where the lightning effect comes from - whether an existing EffectInfo has one or it must be
+  built.
+- The API for placing and removing the red decal or prop, perhaps through `PropManager`.
+- Whether an effect's colour can be set to red, or whether a custom red effect is needed.
+- Balancing the tripods' beam destruction: the exact radius and how many buildings go at once.
 
-## 15. スコープ外（YAGNI）
+## 15. Out of scope (YAGNI)
 
-- トライポッドをゲームの正規ユニット（選択・情報パネル）にすること。
-- 除染施設による浄化（時間のみ）。
-- マルチ言語UI（初期は日本語/英語の最小表記）。
+- Making the tripods proper game units, selectable and with an info panel.
+- Decontamination facilities; time alone clears it.
+- A multilingual UI; the initial wording is kept minimal.
