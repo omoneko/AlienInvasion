@@ -1,41 +1,64 @@
 # Alien Invasion (Cities: Skylines Mod)
 
-UFO母船が飛来し、雷を連打して地面にクレーターを形成、周辺の建物を破壊、放射能汚染(赤)をゲーム内1年残す。手動発動キー: **F7**（`Game/ModConfig.cs`の`ManualTriggerKey`で変更可）。ランダムでも低確率発生する。
+> This file covers the mod source directory. The repository root README is the authoritative
+> description of the mod and of the current AssetBundle procedure; where the two disagree, follow
+> the root.
 
-## AssetBundle の作り方（Blenderモデル→ゲームで使える形式）
+A mothership arrives, strikes repeatedly with lightning to tear a crater open, destroys the
+buildings around it and leaves red radioactive contamination behind. The manual trigger key is
+**F7**, which can be changed through `ManualTriggerKey` in `Game/ModConfig.cs`. It also occurs at
+random, with a low probability.
 
-1. **Unity Editor 5.6.6f2** をインストール（[Unity Archive](https://unity3d.com/get-unity/download/archive) から取得。Cities: Skylines のエンジン(Unity 5.6.7)と互換のバージョン）。
-2. `models/source/models.blend` を Blender で開き、`MotherShip` と `TriPod`（本フェーズでは未使用）、赤いデカール用の平面オブジェクトをそれぞれ **FBX でエクスポート**。
-   - 注: `MotherShip` と `TriPod` には既にマテリアル（`MetallicGray` ベースマテリアルとカスタムアクセント色マテリアル）が設定済みです。Blender の FBX エクスポーターはこれらのマテリアル割り当てを自動的に含めるため、Unity インポート後はマテリアルがそのまま引き継がれます。このステップは、FBX をクリーンにエクスポートし、Unity でマテリアルが正しくインポートされたことを確認することが目標です（ゼロから作成する必要はありません）。
-   - `MotherShip` のピボットは幾何中心（確認済み・修正不要）。
-   - デカール用オブジェクトは中心/接地面にピボットを置く。
-   - エクスポート前に `Ctrl+A → Scale` で各オブジェクトのスケールを適用しておく（未適用スケールが残ったままだとFBXインポート後の挙動が予測しにくくなるため）。
-3. `unity-project` を Unity Editor 5.6.6f2 で開く。
-4. エクスポートしたFBXを `unity-project/Assets/` にインポートし、マテリアルが正しく適用されていることを確認（`_d`色/`_n`ノーマル/`_s`スペキュラ/`_i`自発光/`_a`透明）。
-5. 各モデルを Prefab 化し、**Prefab名を正確に** `Mothership` / `ContaminationDecal` にする（`Game/ModConfig.cs` の `MothershipPrefabName`/`RedDecalPrefabName` と一致させる）。
-6. 各Prefabの Inspector で **AssetBundle名** を `alieninvasion` に設定（Prefab選択 → Inspector右下の AssetBundle ドロップダウン）。
-7. Unity メニュー **AlienInvasion → Build AssetBundle** を実行。
-8. `unity-project/AssetBundles/alieninvasion` というファイル（拡張子なし）が生成されるので、**`alieninvasion.bundle`** にリネームして `src/AlienInvasion/Assets/alieninvasion.bundle` に配置。
-9. `build.ps1` を再実行するとModフォルダへ自動配置される。
+## Building the AssetBundle (turning the Blender models into a form the game can use)
 
-AssetBundleが無い状態でもModはビルド・起動でき、母船/デカールの視覚演出のみスキップされる（ログに `AssetBundle not found` と出る）。
+1. Install **Unity Editor 5.6.6f2**, from the
+   [Unity Archive](https://unity3d.com/get-unity/download/archive). It is compatible with the
+   Unity 5.6.7 engine Cities: Skylines runs on.
+2. Open `models/source/models.blend` in Blender and **export as FBX**: `MotherShip`, `TriPod`,
+   and the flat object used for the red decal.
+   - Note that `MotherShip` and `TriPod` already have their materials set up: the `MetallicGray`
+     base material plus custom accent colours. Blender's FBX exporter carries those assignments
+     across automatically, so they survive the import into Unity. The goal of this step is a
+     clean export and a check that the materials came through - there is nothing to recreate.
+   - The pivot of `MotherShip` is at its geometric centre; this is correct and needs no change.
+   - Put the decal object's pivot at its centre, on the ground plane.
+   - Apply each object's scale with `Ctrl+A -> Scale` before exporting. An unapplied scale makes
+     the behaviour after the FBX import hard to predict.
+3. Open `unity-project` in Unity Editor 5.6.6f2.
+4. Import the exported FBX files into `unity-project/Assets/` and check the materials applied
+   correctly (`_d` colour, `_n` normal, `_s` specular, `_i` illumination, `_a` alpha).
+5. Make a prefab of each model and name them **exactly** `Mothership` and `ContaminationDecal`,
+   matching `MothershipPrefabName` and `RedDecalPrefabName` in `Game/ModConfig.cs`.
+6. Set the **AssetBundle name** to `alieninvasion` on each prefab, through the AssetBundle
+   dropdown at the bottom right of the Inspector.
+7. Run **AlienInvasion -> Build AssetBundle** from the Unity menu.
+8. It produces `unity-project/AssetBundles/alieninvasion`, with no extension. Rename it to
+   **`alieninvasion.bundle`** and put it at `src/AlienInvasion/Assets/alieninvasion.bundle`.
+9. Run `build.ps1` again and it is deployed into the mod folder.
 
-## ビルドと配置
+The mod builds and runs without the AssetBundle; only the mothership and decal visuals are
+skipped, and the log says `AssetBundle not found`.
+
+## Building and deploying
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1
 ```
-`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\` に配置される。
+The result is deployed to
+`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\`.
 
-## ゲーム内動作確認手順
-1. Content Manager → Mods で "Alien Invasion" を有効化。
-2. ゲーム内で **F7** を押す（または待ってランダム発生を確認）。
-3. 母船が降下 → 雷を連打しながらクレーターが形成される → 周辺建物が破壊される → 上昇して消える。
-4. 跡地に赤い汚染が残ることを確認（AssetBundle未配置の場合は標準の土壌汚染のみ）。
-5. ゲーム内1年経過で汚染が自動消滅することを確認。
-6. セーブ→ロードで汚染が維持されることを確認。
+## Checking it works in game
+1. Enable "Alien Invasion" under Content Manager -> Mods.
+2. Press **F7** in game, or wait for a random occurrence.
+3. The mothership descends, strikes with lightning while the crater forms, the surrounding
+   buildings are destroyed, and it climbs away again.
+4. Check that red contamination is left behind. Without the AssetBundle you see the standard
+   ground pollution only.
+5. Check that the contamination lifts on its own once the configured time has passed.
+6. Save and reload, and check that the contamination survives.
 
-## 設定
-定数は `Game/ModConfig.cs`（発動キー・確率・半径・時間等）。
+## Settings
+The constants live in `Game/ModConfig.cs`: the trigger key, the probabilities, the radii, the
+durations and so on.
 
-## ログ
-`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\` の output_log で `[AlienInvasion]` を検索。
+## Logs
+Search the output log in `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\` for `[AlienInvasion]`.

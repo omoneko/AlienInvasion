@@ -1,83 +1,100 @@
-# Alien Invasion — Cities: Skylines (初代) Mod
+# Alien Invasion - a Cities: Skylines (2015) mod
 
-SimCity 4 のエイリアン襲来をオマージュした災害Mod。UFO母船が飛来して雷で陥没穴を作り街を破壊、
-続いて3体のトライポッドがランダムに歩き回りレーザーで建物を局所破壊し、跡地に赤い汚染を残す。
+A disaster mod paying homage to the alien invasion from SimCity 4. A mothership descends, tears
+a sinkhole open with lightning and wrecks the surrounding city; three tripods then roam at
+random, destroying buildings with their lasers and leaving a red contamination in their wake.
 
-- 対象: Cities: Skylines 初代 / .NET Framework 3.5
-- 発動: 手動（**F7キー** または **UFO召喚ボタン**で地点をクリック指定）＋ 低確率のランダム発生
-- 汚染: ゲーム内 **2か月** で自然消滅（除染施設なし）
+- Target: Cities: Skylines (2015) / .NET Framework 3.5
+- Triggering: by hand (the **F7 key** or the **summon button**, then click a spot), plus a
+  low-probability random occurrence
+- Contamination: lifts on its own after **2 in-game months**; nothing decontaminates it
 
-## 演出の流れ
+## What happens
 
-1. 母船が上空から降下し、回転しながらホバリング
-2. 雷を連打して直下に**災害規模5.5相当の陥没穴**を形成＋範囲内の建物を破壊
-3. 母船が上昇して消滅
-4. 陥没跡付近に**トライポッド3体**が出現、ランダムに自由移動
-5. 各トライポッドが一定間隔でレーザーを発射し、足元付近の建物を**局所破壊**＋軌跡に赤い汚染をスタンプ
-6. 活動時間（既定40秒）後にトライポッド消滅、汚染は2か月残留
+1. The mothership descends from high above and hovers, spinning.
+2. It strikes repeatedly with lightning, opening a **sinkhole equivalent to a scale 5.5
+   disaster** directly beneath it and destroying the buildings in range.
+3. The mothership climbs to its loitering altitude and waits overhead.
+4. **Three tripods** appear near the sinkhole and roam freely at random.
+5. Each fires its laser at intervals, **destroying buildings** near where it stands and stamping
+   red contamination along its trail.
+6. Once their active period is over the tripods vanish, the mothership leaves, and the
+   contamination remains for two months.
 
-数値（時間・半径・体数・確率など）はすべて `src/AlienInvasion/Game/ModConfig.cs` の定数で調整可能。
+Every number - durations, radii, how many tripods, the probabilities - is a constant in
+`src/AlienInvasion/Game/ModConfig.cs`.
 
-## プロジェクト構成
+## Project layout
 
 ```
 src/AlienInvasion/
-  Core/    Unity非依存の純粋ロジック（状態機械・歩行数学・汚染ゾーン・直列化）… xUnitでテスト
-  Game/    ゲーム統合層（母船/トライポッド/エフェクト/汚染/発動/セーブ）
-tests/AlienInvasion.Core.Tests/   Core のユニットテスト（52件）
-models/                            Blenderソース(.blend) と 書き出しFBX(models/export/)
-unity-project/                     AssetBundle ビルド用 Unityプロジェクト
-docs/specs, docs/plans             設計書・実装計画
+  Core/    Pure logic with no Unity dependency: the state machine, the walking maths, the
+           contamination zones and serialisation. Covered by xUnit tests.
+  Game/    The game integration layer: mothership, tripods, effects, contamination,
+           triggering and saving.
+tests/AlienInvasion.Core.Tests/   Unit tests for Core
+models/                            Blender sources (.blend) and the exported FBX (models/export/)
+unity-project/                     Unity project used to build the AssetBundle
+docs/specs, docs/plans             Design documents and implementation plans
 ```
 
-## Mod のビルドと配置
+## Building and deploying the mod
 
 ```powershell
 .\build.ps1
 ```
-MSBuild で `AlienInvasion.dll` をビルドし、
-`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\` へ配置する。
-`src\AlienInvasion\Assets\alieninvasion.bundle` が存在すれば同時に配置される（無ければビジュアルは
-スキップされ、ロジックのみ動作する — 下記のAssetBundle手順で生成する）。
+This builds `AlienInvasion.dll` with MSBuild and deploys it to
+`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion\`.
+If `src\AlienInvasion\Assets\alieninvasion.bundle` exists it is deployed alongside; without it
+the visuals are skipped and only the logic runs. See the AssetBundle steps below to produce it.
 
-Core のテスト:
+Running the Core tests:
 ```powershell
 dotnet test tests\AlienInvasion.Core.Tests\AlienInvasion.Core.Tests.csproj
 ```
 
-## AssetBundle（UFO・トライポッド・赤デカール）の作成
+## Building the AssetBundle (mothership, tripods and the red decal)
 
-モデル本体は AssetBundle に同梱する。CS 本体と同じ Unity バージョンでビルドする必要がある。
+The models themselves ship inside an AssetBundle, which has to be built with the same Unity
+version the game uses.
 
-- 必要: **Unity Editor 5.6.6f2**（CS本体は Unity 5.6.7。5.6.x系は相互互換）
-- モデルFBXは書き出し済み: `models/export/Mothership.fbx`, `models/export/Tripod.fbx`
-  （Blenderで各オブジェクトを原点配置・-Z forward/Y up・接地ピボットで書き出したもの）
+- Required: **Unity Editor 5.6.6f2**. The game runs Unity 5.6.7, and the 5.6.x releases are
+  compatible with each other.
+- The model FBX files are already exported: `models/export/Mothership.fbx` and
+  `models/export/Tripod.fbx`, written out of Blender at the origin, -Z forward and Y up, with
+  the pivot at ground level.
 
-手順:
-1. Unity 5.6.6f2 で `unity-project/` を開く。
-2. `Mothership.fbx` と `Tripod.fbx` を `Assets/` にインポート。
-   - スケールが大きい/小さい場合は Import Settings の Scale Factor か、ゲーム側 `ModConfig.MothershipScale` /
-     `TripodScale` で調整（母船 約199m径、トライポッド 約65m高が既定）。
-3. 各FBXから**プレハブ**を作成し、**プレハブ名を厳密に**次のとおりにする（コードが名前で読み込む）:
-   - UFO母船 → `Mothership`
-   - トライポッド → `Tripod`
-   - 赤い汚染デカール → `ContaminationDecal`
-     （FBX不要。Unityで Quad を作り赤い半透明マテリアルを割り当てただけの平面プレハブでよい）
-4. 3つのプレハブを選択し、Inspector 最下部の **AssetBundle** 欄で新規バンドル名 `alieninvasion.bundle` を割り当てる。
-   - 対応する `ModConfig` の定数: `MothershipPrefabName="Mothership"`, `TripodPrefabName="Tripod"`,
-     `RedDecalPrefabName="ContaminationDecal"`, `AssetBundleFileName="alieninvasion.bundle"`。
-5. メニュー **AlienInvasion → Build AssetBundle** を実行（`unity-project/Assets/Editor/BuildAssetBundles.cs`）。
-   `unity-project/AssetBundles/alieninvasion.bundle` が生成される。
-6. 生成物を `src/AlienInvasion/Assets/alieninvasion.bundle` にコピーし、`.\build.ps1` を再実行。
-   （`build.ps1` がバンドルを Mod フォルダへ配置する。）
+Steps:
+1. Open `unity-project/` in Unity 5.6.6f2.
+2. Import `Mothership.fbx` and `Tripod.fbx` into `Assets/`.
+   - If the scale looks wrong, adjust either the Scale Factor in the import settings or
+     `ModConfig.MothershipScale` / `TripodScale` on the game side. The defaults are a mothership
+     about 199 m across and a tripod about 65 m tall.
+3. Create a **prefab** from each FBX and name them **exactly** as follows, since the code looks
+   them up by name:
+   - mothership -> `Mothership`
+   - tripod -> `Tripod`
+   - red contamination decal -> `ContaminationDecal`
+     (no FBX needed - a quad with a translucent red material is enough)
+4. Select all three prefabs and, in the **AssetBundle** field at the bottom of the Inspector,
+   assign the new bundle name `alieninvasion.bundle`.
+   - The matching constants in `ModConfig` are `MothershipPrefabName="Mothership"`,
+     `TripodPrefabName="Tripod"`, `RedDecalPrefabName="ContaminationDecal"` and
+     `AssetBundleFileName="alieninvasion.bundle"`.
+5. Run **AlienInvasion -> Build AssetBundle** from the menu; the script is
+   `unity-project/Assets/Editor/BuildAssetBundles.cs`. It produces
+   `unity-project/AssetBundles/alieninvasion.bundle`.
+6. Copy the result to `src/AlienInvasion/Assets/alieninvasion.bundle` and run `.\build.ps1`
+   again, which deploys the bundle into the mod folder.
 
-バンドル配置後にゲームを再起動すると、母船・トライポッド・赤デカールが表示される。
-バンドルが無くても Mod はクラッシュせず、ビジュアルのみスキップして全ロジックが動作する。
+Restart the game after deploying the bundle and the mothership, the tripods and the red decal
+will appear. Without the bundle the mod does not crash: it skips the visuals and every part of
+the logic still runs.
 
-## 操作
+## Controls
 
-| 操作 | 内容 |
+| Control | What it does |
 |------|------|
-| **F7** | UFO配置ツールを起動（地点を左クリックで襲来開始） |
-| **UFO召喚ボタン** | 同上（画面のボタンからツール起動） |
-| 自動 | 一定周期で低確率抽選し、ランダム地点で襲来（`ModConfig` でON/OFF・頻度調整） |
+| **F7** | Opens the placement tool; left click a spot to start the invasion |
+| **Summon button** | The same, from the button on screen |
+| Automatic | A low-probability draw at regular intervals starts an invasion at a random spot. It can be switched off and its frequency adjusted in `ModConfig`. |
