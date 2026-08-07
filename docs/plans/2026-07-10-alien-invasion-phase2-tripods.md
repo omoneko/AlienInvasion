@@ -5,7 +5,7 @@
 - 対象: Cities: Skylines 初代 / .NET Framework 3.5 mod（Core は Unity 非依存・xUnit）
 - 設計根拠: `docs/specs/2026-07-09-alien-invasion-design.md` §8, §9
 
-## 目的
+## Purpose
 
 Phase 1（母船）完了後に続く演出をユーザー希望の順で実装する:
 1. **UFOモデル演出の仕上げ**（回転・スケール）
@@ -82,7 +82,7 @@ Phase 1 は `Ascending → Done` だったが、間に `TripodDeploy`（3体生�
 
 ## Task 3 — Game: UFOモデル演出の仕上げ（回転・スケール）
 
-`ModConfig` に追加:
+Added to `ModConfig`:
 ```
 public const float MothershipSpinDegPerSec = 20f;  // 母船の水平回転速度(度/秒)
 public const float MothershipScale = 1f;           // prefab 生成時のスケール(実機で調整)
@@ -102,7 +102,7 @@ public const float MothershipScale = 1f;           // prefab 生成時のスケ�
 
 ## Task 4 — Game: トライポッド実体と召喚（3体・ランダム移動）
 
-`ModConfig` に追加:
+Added to `ModConfig`:
 ```
 public const string TripodPrefabName = "Tripod";
 public const int   TripodCount = 3;
@@ -151,7 +151,7 @@ GameObject なしで進行し、`TripodActiveSeconds` 後に正しく Done へ�
 
 ## Task 5 — Game: レーザー破壊＋軌跡の赤い汚染
 
-`ModConfig` に追加:
+Added to `ModConfig`:
 ```
 public const float BeamIntervalSeconds = 1.5f;        // ビーム発射(=局所破壊)の間隔
 public const float BeamDestroyRadius = 25f;           // 1回のビームで破壊する半径(局所)

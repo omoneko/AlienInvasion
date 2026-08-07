@@ -92,7 +92,7 @@
 - Create: `tests/AlienInvasion.Core.Tests/InvasionStateTests.cs`
 
 **Interfaces:**
-- Consumes: なし
+- Consumes: nothing
 - Produces:
   - `enum InvasionState { Idle, Descending, Bombarding, Ascending, Done }`（namespace `AlienInvasion.Core`）
   - `static class InvasionStateMachine { static bool CanTransition(InvasionState from, InvasionState to); static InvasionState Next(InvasionState current); }` — 許可される遷移は `Idle→Descending→Bombarding→Ascending→Done→Idle` の一方向のみ。
@@ -120,7 +120,7 @@
 </Project>
 ```
 
-- [ ] **Step 2: 失敗するテストを書く**
+- [ ] **Step 2: write the failing tests.**
 
 `tests/AlienInvasion.Core.Tests/InvasionStateTests.cs`:
 ```csharp
@@ -166,7 +166,7 @@ public class InvasionStateTests
 }
 ```
 
-- [ ] **Step 3: テスト実行して失敗を確認**
+- [ ] **Step 3: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
 Expected: FAIL（`InvasionState`/`InvasionStateMachine`/`ContaminationZone` が未定義でコンパイルエラー）
@@ -215,7 +215,7 @@ namespace AlienInvasion.Core
 ```csharp
 namespace AlienInvasion.Core
 {
-    /// <summary>ワールド座標中心・半径(m)・発生ゲーム内時刻(DateTime.Ticks)の汚染ゾーン。</summary>
+    /// <summary>A contamination zone: world-space centre, radius in metres, and the in-game time it started (DateTime.Ticks).</summary>
     public struct ContaminationZone
     {
         public float CenterX;
@@ -234,12 +234,12 @@ namespace AlienInvasion.Core
 }
 ```
 
-- [ ] **Step 5: テスト実行して成功を確認**
+- [ ] **Step 5: run the tests and confirm they pass.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: PASS（全件）
+Expected: PASS (all of them)
 
-- [ ] **Step 6: コミット**
+- [ ] **Step 6: commit.**
 
 ```bash
 git add src/AlienInvasion/Core/InvasionState.cs src/AlienInvasion/Core/ContaminationZone.cs tests/AlienInvasion.Core.Tests
@@ -255,7 +255,7 @@ git commit -m "feat: InvasionState状態機械とContaminationZoneを追加"
 - Test: `tests/AlienInvasion.Core.Tests/GridMathTests.cs`
 
 **Interfaces:**
-- Consumes: なし
+- Consumes: nothing
 - Produces（`static class GridMath`, namespace `AlienInvasion.Core`）:
   - `const float CellSize = 33.75f;`
   - `const int Resolution = 512;`
@@ -263,7 +263,7 @@ git commit -m "feat: InvasionState状態機械とContaminationZoneを追加"
   - `int CellIndex(int cellX, int cellZ)` → `cellZ*512+cellX`
   - `System.Collections.Generic.List<int> CellsInRadius(float centerX, float centerZ, float radiusMeters)` — 半径内の全セルindexを重複なく列挙（円判定はセル中心のワールド距離）。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **Step 1: write the failing tests.**
 
 `tests/AlienInvasion.Core.Tests/GridMathTests.cs`:
 ```csharp
@@ -323,12 +323,12 @@ public class GridMathTests
 }
 ```
 
-- [ ] **Step 2: テスト実行して失敗を確認**
+- [ ] **Step 2: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
 Expected: FAIL（`GridMath` 未定義）
 
-- [ ] **Step 3: 実装**
+- [ ] **Step 3: implement.**
 
 `src/AlienInvasion/Core/GridMath.cs`:
 ```csharp
@@ -387,12 +387,12 @@ namespace AlienInvasion.Core
 }
 ```
 
-- [ ] **Step 4: テスト実行して成功を確認**
+- [ ] **Step 4: run the tests and confirm they pass.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: PASS（全件）
+Expected: PASS (all of them)
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 5: commit.**
 
 ```bash
 git add src/AlienInvasion/Core/GridMath.cs tests/AlienInvasion.Core.Tests/GridMathTests.cs
@@ -408,11 +408,11 @@ git commit -m "feat: GridMath 座標変換と半径セル列挙を追加"
 - Test: `tests/AlienInvasion.Core.Tests/ExpiryClockTests.cs`
 
 **Interfaces:**
-- Consumes: なし
+- Consumes: nothing
 - Produces（`static class ExpiryClock`, namespace `AlienInvasion.Core`）:
   - `bool HasExpired(long startTicks, long nowTicks, int years)` — `now >= start.AddYears(years)`。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **Step 1: write the failing tests.**
 
 `tests/AlienInvasion.Core.Tests/ExpiryClockTests.cs`:
 ```csharp
@@ -448,12 +448,12 @@ public class ExpiryClockTests
 }
 ```
 
-- [ ] **Step 2: テスト実行して失敗を確認**
+- [ ] **Step 2: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
 Expected: FAIL（`ExpiryClock` 未定義）
 
-- [ ] **Step 3: 実装**
+- [ ] **Step 3: implement.**
 
 `src/AlienInvasion/Core/ExpiryClock.cs`:
 ```csharp
@@ -461,7 +461,7 @@ using System;
 
 namespace AlienInvasion.Core
 {
-    /// <summary>汚染ゾーンの時間経過による消滅判定（ゲーム内時刻ベース）。</summary>
+    /// <summary>Decides when a contamination zone has aged out, based on in-game time.</summary>
     public static class ExpiryClock
     {
         public static bool HasExpired(long startTicks, long nowTicks, int years)
@@ -474,12 +474,12 @@ namespace AlienInvasion.Core
 }
 ```
 
-- [ ] **Step 4: テスト実行して成功を確認**
+- [ ] **Step 4: run the tests and confirm they pass.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: PASS（全件）
+Expected: PASS (all of them)
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 5: commit.**
 
 ```bash
 git add src/AlienInvasion/Core/ExpiryClock.cs tests/AlienInvasion.Core.Tests/ExpiryClockTests.cs
@@ -495,13 +495,13 @@ git commit -m "feat: ExpiryClock N年経過判定を追加"
 - Test: `tests/AlienInvasion.Core.Tests/ZoneSerializerTests.cs`
 
 **Interfaces:**
-- Consumes: `ContaminationZone`（Task 1）
+- Consumes `ContaminationZone` from Task 1
 - Produces（`static class ZoneSerializer`, namespace `AlienInvasion.Core`）:
   - `const byte Version = 1;`
   - `byte[] Serialize(List<ContaminationZone> zones)`
   - `List<ContaminationZone> Deserialize(byte[] data)` — null/短すぎる/未知バージョン/破損時は空リストを返し、例外を投げない。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **Step 1: write the failing tests.**
 
 `tests/AlienInvasion.Core.Tests/ZoneSerializerTests.cs`:
 ```csharp
@@ -551,12 +551,12 @@ public class ZoneSerializerTests
 }
 ```
 
-- [ ] **Step 2: テスト実行して失敗を確認**
+- [ ] **Step 2: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: FAIL（`ZoneSerializer` 未定義）
+Expected: FAIL, `ZoneSerializer` is not defined yet
 
-- [ ] **Step 3: 実装**
+- [ ] **Step 3: implement.**
 
 `src/AlienInvasion/Core/ZoneSerializer.cs`:
 ```csharp
@@ -622,12 +622,12 @@ namespace AlienInvasion.Core
 }
 ```
 
-- [ ] **Step 4: テスト実行して成功を確認**
+- [ ] **Step 4: run the tests and confirm they pass.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: PASS（全件）
+Expected: PASS (all of them)
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 5: commit.**
 
 ```bash
 git add src/AlienInvasion/Core/ZoneSerializer.cs tests/AlienInvasion.Core.Tests/ZoneSerializerTests.cs
@@ -643,13 +643,13 @@ git commit -m "feat: ZoneSerializer ゾーン台帳の直列化/復元を追加"
 - Test: `tests/AlienInvasion.Core.Tests/MovementMathTests.cs`
 
 **Interfaces:**
-- Consumes: なし
+- Consumes: nothing
 - Produces（`static class MovementMath`, namespace `AlienInvasion.Core`）:
   - `float EaseInOut(float t)` — `t`(0-1)を滑らかな加減速カーブに変換（`3t²-2t³`のスムーズステップ）。
   - `float Lerp(float a, float b, float t)` — `t`を0-1にクランプして線形補間。
   - `bool IsNear(float a, float b, float epsilon)` — 差が`epsilon`以下か（フェーズ2のトライポッド移動判定用に用意。本プランでは未使用だが公開APIとしてテストする）。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [ ] **Step 1: write the failing tests.**
 
 `tests/AlienInvasion.Core.Tests/MovementMathTests.cs`:
 ```csharp
@@ -703,12 +703,12 @@ public class MovementMathTests
 }
 ```
 
-- [ ] **Step 2: テスト実行して失敗を確認**
+- [ ] **Step 2: run the tests and confirm they fail.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
 Expected: FAIL（`MovementMath` 未定義）
 
-- [ ] **Step 3: 実装**
+- [ ] **Step 3: implement.**
 
 `src/AlienInvasion/Core/MovementMath.cs`:
 ```csharp
@@ -741,12 +741,12 @@ namespace AlienInvasion.Core
 }
 ```
 
-- [ ] **Step 4: テスト実行して成功を確認**
+- [ ] **Step 4: run the tests and confirm they pass.**
 
 Run: `dotnet test tests/AlienInvasion.Core.Tests`
-Expected: PASS（全件）
+Expected: PASS (all of them)
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 5: commit.**
 
 ```bash
 git add src/AlienInvasion/Core/MovementMath.cs tests/AlienInvasion.Core.Tests/MovementMathTests.cs
@@ -766,7 +766,7 @@ git commit -m "feat: MovementMath 高度補間/イージングを追加"
 - Create: `build.ps1`
 
 **Interfaces:**
-- Consumes: なし
+- Consumes: nothing
 - Produces:
   - `static class ModConfig`（namespace `AlienInvasion.Game`）: 全定数（下記Step2で定義）+ `static void Log(string)` / `static void LogError(string)`。
   - `class Mod : IUserMod`: `Name`, `Description`（get-only プロパティ）。
@@ -842,7 +842,7 @@ using UnityEngine;
 
 namespace AlienInvasion.Game
 {
-    /// <summary>Mod全体の定数と共通ログ。</summary>
+    /// <summary>Mod-wide constants and shared logging.</summary>
     public static class ModConfig
     {
         public const string LogPrefix = "[AlienInvasion] ";
@@ -932,10 +932,10 @@ EndGlobal
 $ErrorActionPreference = "Stop"
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
-if (-not $msbuild) { throw "MSBuild が見つかりません" }
+if (-not $msbuild) { throw "MSBuild not found" }
 
 & $msbuild "src\AlienInvasion\AlienInvasion.csproj" /t:Restore,Build /p:Configuration=Release /v:minimal
-if ($LASTEXITCODE -ne 0) { throw "ビルド失敗" }
+if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
 $dll = "src\AlienInvasion\bin\Release\AlienInvasion.dll"
 $modDir = Join-Path $env:LOCALAPPDATA "Colossal Order\Cities_Skylines\Addons\Mods\AlienInvasion"
@@ -951,7 +951,7 @@ if (Test-Path $bundleSrc) {
 } else {
     Write-Host "警告: $bundleSrc が見つかりません。ビジュアル(母船/赤デカール)は起動時スキップされます。"
 }
-Write-Host "配置完了: $modDir"
+Write-Host "Deploy complete: $modDir"
 ```
 このファイルは**必ずUTF-8 BOM付きで保存**すること（PowerShell 5.1が日本語文字列リテラルを正しく解釈するため。Nuclear Meltdown Modで実際に踏んだ問題）。
 
@@ -965,7 +965,7 @@ touch src/AlienInvasion/Assets/.gitkeep
 - [ ] **Step 7: ビルド検証**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。`AlienInvasion.dll` が生成され Modフォルダへコピーされる。`alieninvasion.bundle` はまだ存在しないため警告が出るが、これは想定どおり（Task 14で用意）。
+Expected: the build succeeds.`AlienInvasion.dll` が生成され Modフォルダへコピーされる。`alieninvasion.bundle` はまだ存在しないため警告が出るが、これは想定どおり（Task 14で用意）。
 
 - [ ] **Step 8: コミット**
 
@@ -988,7 +988,7 @@ git commit -m "feat: Mod本体プロジェクト骨組みとビルド/配置ス�
   - `GameObject GetPrefab(string name)` — ロード済みprefabを名前で取得。無ければ `null`。
   - `bool IsAvailable { get; }` — AssetBundleが正常にロードされたか。
 
-- [ ] **Step 1: 実装**
+- [ ] **Step 1: implement.**
 
 `src/AlienInvasion/Game/AssetLoader.cs`:
 ```csharp
@@ -1075,12 +1075,12 @@ namespace AlienInvasion.Game
 }
 ```
 
-- [ ] **Step 3: ビルド検証**
+- [ ] **Step 3: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。
+Expected: the build succeeds.
 
-- [ ] **Step 4: コミット**
+- [ ] **Step 4: commit.**
 
 ```bash
 git add src/AlienInvasion/Game/AssetLoader.cs src/AlienInvasion/Game/Mod.cs
@@ -1214,12 +1214,12 @@ namespace AlienInvasion.Game
 }
 ```
 
-- [ ] **Step 3: ビルド検証**
+- [ ] **Step 3: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。
+Expected: the build succeeds.
 
-- [ ] **Step 4: コミット**
+- [ ] **Step 4: commit.**
 
 ```bash
 git add src/AlienInvasion/Game/PollutionField.cs src/AlienInvasion/Game/ContaminationManager.cs
@@ -1239,7 +1239,7 @@ git commit -m "feat: 汚染グリッド書込(PollutionField)とゾーン台帳(
   - `void Sync(List<ContaminationZone> activeZones)` — 現在のゾーン一覧に合わせてデカールGameObjectを生成/破棄。ゾーンごとに1つのデカールを`(CenterX, TerrainHeight, CenterZ)`に配置し、`Radius*2`にスケール。**メインスレッド専用**（GameObject操作のため）。
   - `void Clear()` — 全デカールを破棄（Mod無効化/エラー時のクリーンアップ用）。
 
-- [ ] **Step 1: 実装**
+- [ ] **Step 1: implement.**
 
 `src/AlienInvasion/Game/RedContaminationVisual.cs`:
 ```csharp
@@ -1335,12 +1335,12 @@ namespace AlienInvasion.Game
 ```
 注: `TerrainManager.SampleDetailHeight` は地形の高さを取得する標準API。ゾーンの一意キーは `(CenterX, CenterZ, StartTicks)` のハッシュとする（同一ゾーンが `ReplaceAll` 等でリスト内位置を変えても同じキーを保つため、インデックスではなく値ベース）。
 
-- [ ] **Step 2: ビルド検証**
+- [ ] **Step 2: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。
+Expected: the build succeeds.
 
-- [ ] **Step 3: コミット**
+- [ ] **Step 3: commit.**
 
 ```bash
 git add src/AlienInvasion/Game/RedContaminationVisual.cs
@@ -1360,7 +1360,7 @@ git commit -m "feat: RedContaminationVisual 赤デカールの配置/撤去を�
   - `void PlayLightningStrike(Vector3 groundPoint, Vector3 skyPoint)` — **メインスレッド専用**。`groundPoint`と`skyPoint`を結ぶジグザグの`LineRenderer`ボルトを一瞬表示し、着弾点に隕石衝撃エフェクト（流用）を再生、`RainProperties.m_ThunderSound`を再生。
   - 内部で生成した一時GameObject（ボルト）は再生後 `Object.Destroy(go, lifetime)` で自動破棄。
 
-- [ ] **Step 1: 実装**
+- [ ] **Step 1: implement.**
 
 `src/AlienInvasion/Game/Effects.cs`:
 ```csharp
@@ -1465,12 +1465,12 @@ namespace AlienInvasion.Game
 }
 ```
 
-- [ ] **Step 2: ビルド検証**
+- [ ] **Step 2: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。
+Expected: the build succeeds.
 
-- [ ] **Step 3: コミット**
+- [ ] **Step 3: commit.**
 
 ```bash
 git add src/AlienInvasion/Game/Effects.cs
@@ -1718,12 +1718,12 @@ namespace AlienInvasion.Game
 ```
 注: `UpdateVisual` を `Idle` 状態の1フレームだけ `Done→Idle` に遷移させ、`IsActive` が正しく `false` に戻るようにしている（元のNextチェーンは `Done→Idle` だが、Doneに到達した直後の1回はメインスレッドのこの遷移を経由する必要がある）。
 
-- [ ] **Step 3: ビルド検証**
+- [ ] **Step 3: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。
+Expected: the build succeeds.
 
-- [ ] **Step 4: コミット**
+- [ ] **Step 4: commit.**
 
 ```bash
 git add src/AlienInvasion/Game/Mothership.cs src/AlienInvasion/Game/InvasionManager.cs
@@ -1744,7 +1744,7 @@ git commit -m "feat: Mothership と InvasionManager(状態機械)を追加"
     - `OnUpdate(float realTimeDelta, float simulationTimeDelta)`（メインスレッド）: 手動キー検知 → `InvasionManager.StartInvasion`、`InvasionManager.UpdateVisual`、`RedContaminationVisual.Sync`。
     - `OnAfterSimulationTick()`（シミュレーションスレッド）: `InvasionManager.UpdateSimulation`、ランダム発生抽選、汚染ゾーンの維持/期限処理。
 
-- [ ] **Step 1: 実装**
+- [ ] **Step 1: implement.**
 
 `src/AlienInvasion/Game/Simulation/InvasionThreadingExtension.cs`:
 ```csharp
@@ -1848,12 +1848,12 @@ namespace AlienInvasion.Game.Simulation
 }
 ```
 
-- [ ] **Step 2: ビルド検証**
+- [ ] **Step 2: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。
+Expected: the build succeeds.
 
-- [ ] **Step 3: コミット**
+- [ ] **Step 3: commit.**
 
 ```bash
 git add src/AlienInvasion/Game/Simulation/InvasionThreadingExtension.cs
@@ -1872,7 +1872,7 @@ git commit -m "feat: InvasionThreadingExtension 発動/毎tick駆動/汚染維�
 - Produces:
   - `class InvasionDataExtension : SerializableDataExtensionBase` — `OnSaveData()`/`OnLoadData()`。データキー `"AlienInvasion.Contamination.v1"`。ゲームが自動検出。
 
-- [ ] **Step 1: 実装**
+- [ ] **Step 1: implement.**
 
 `src/AlienInvasion/Game/Serialization/InvasionDataExtension.cs`:
 ```csharp
@@ -1920,12 +1920,12 @@ namespace AlienInvasion.Game.Serialization
 }
 ```
 
-- [ ] **Step 2: ビルド検証**
+- [ ] **Step 2: verify the build.**
 
 Run: `powershell -ExecutionPolicy Bypass -File build.ps1`
-Expected: ビルド成功。
+Expected: the build succeeds.
 
-- [ ] **Step 3: コミット**
+- [ ] **Step 3: commit.**
 
 ```bash
 git add src/AlienInvasion/Game/Serialization/InvasionDataExtension.cs
@@ -1943,7 +1943,7 @@ git commit -m "feat: 汚染ゾーンのセーブ/ロード永続化を追加"
 - Create: `src/AlienInvasion/README.md`
 
 **Interfaces:**
-- Consumes: なし
+- Consumes: nothing
 - Produces: なし（ツール/ドキュメント）
 
 - [ ] **Step 1: BuildAssetBundles.cs を作成**
@@ -2011,7 +2011,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\` の output_log で `[AlienInvasion]` を検索。
 ```
 
-- [ ] **Step 3: コミット**
+- [ ] **Step 3: commit.**
 
 ```bash
 git add unity-project/Assets/Editor/BuildAssetBundles.cs src/AlienInvasion/README.md
