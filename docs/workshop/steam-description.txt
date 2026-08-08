@@ -35,4 +35,8 @@ They came from the sky. A UFO mothership descends over your city, blasts it with
 [*] This mod [b]destroys buildings and terrain[/b] — try it on a city you don't mind scarring, or keep a backup save.
 [/list]
 
+[h1]Source code[/h1]
+This mod is open source under the MIT licence. Bug reports and pull requests are welcome:
+[url=https://github.com/omoneko/AlienInvasion]github.com/omoneko/AlienInvasion[/url]
+
 Welcome your new overlords. Have fun out there. 🛸
