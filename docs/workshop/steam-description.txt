@@ -15,12 +15,12 @@ They came from the sky. A UFO mothership descends over your city, blasts it with
 [h1]Details[/h1]
 [list]
 [*] Tripods stay for [b]14 in-game days[/b], then the mothership finally departs.
-[*] Invasions can also strike [b]at random[/b] on their own.
+[*] Invasions can also strike [b]at random[/b] on their own — [b]off by default[/b]; switch it on in the options and choose how often.
 [/list]
 
 [h1]How to use[/h1]
 [list]
-[*] Open the [b]Disasters[/b] info-view panel and click the [b]UFO icon[/b] shown next to the vanilla disaster buttons (or press [b]F7[/b]).
+[*] Open the [b]Disasters[/b] info-view panel and click the [b]UFO icon[/b] shown next to the vanilla disaster buttons (or press [b]F7[/b], rebindable in the options).
 [*] Click a spot on the map to summon the mothership there.
 [*] Repeat to launch [b]up to 5[/b] invasions at the same time.
 [/list]
@@ -33,6 +33,13 @@ They came from the sky. A UFO mothership descends over your city, blasts it with
 
 Welcome your new overlords. Have fun out there. 🛸
 
+[h1]Options[/h1]
+[list]
+[*] [b]Random invasions[/b] — off by default. Switch them on and set the average gap in in-game days; it runs on the game clock, so it stops while the game is paused.
+[*] [b]Summon hotkey[/b], and [b]how many invasions may run at once[/b] (1-5).
+[*] [b]Red weed[/b] on or off, and the arrival and footstep sounds with a volume.
+[/list]
+
 [h1]Language[/h1]
 English and Japanese - the game's own language setting picks between them.
 Other languages are welcome. The mod ships Locales/en.txt as a template: copy it to your language code (de.txt, fr.txt, zh.txt, ...), translate the values, and open a pull request on GitHub or post the file in the comments. Missing lines fall back to English, so a partial translation is fine.
@@ -43,3 +50,4 @@ This mod is open source under the MIT licence. Bug reports and pull requests are
 [h1]Support[/h1]
 If you enjoy the mod, you can support development here:
 https://ko-fi.com/omoneko
+
