@@ -113,7 +113,8 @@ namespace AlienInvasion.Game.UI
                 button.hoveredBgSprite = "ButtonMenuHovered";
                 button.pressedBgSprite = "ButtonMenuPressed";
             }
-            button.tooltip = "Select a location to summon the UFO mothership";
+            LocaleLoader.EnsureLoaded();
+            button.tooltip = AlienStrings.Button_Tooltip;
             button.eventClick += OnButtonClick;
 
             if (_iconTex == null) _iconTex = UfoIcon.Build(64);
@@ -177,7 +178,8 @@ namespace AlienInvasion.Game.UI
             button.normalBgSprite = "ButtonMenu";
             button.hoveredBgSprite = "ButtonMenuHovered";
             button.pressedBgSprite = "ButtonMenuPressed";
-            button.tooltip = "Select a location to summon the UFO mothership";
+            LocaleLoader.EnsureLoaded();
+            button.tooltip = AlienStrings.Button_Tooltip;
             button.eventClick += OnButtonClick;
 
             if (_iconTex == null) _iconTex = UfoIcon.Build(30);

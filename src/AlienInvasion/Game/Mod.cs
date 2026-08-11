@@ -7,8 +7,14 @@ namespace AlienInvasion.Game
 {
     public class Mod : IUserMod
     {
+        // The mod's name is its Workshop title, so it stays in English; the description is
+        // localizable. The getter loads the locale because the Content Manager reads this, and
+        // this mod has no options screen to load it from.
         public string Name => "Alien Invasion";
-        public string Description => "A UFO mothership descends, wrecks the city with lightning and a crater, then deploys roaming tripods that fire lasers and leave red contamination. Trigger it with the \"UFO !\" button or the F7 key (up to 5 at once).";
+        public string Description
+        {
+            get { LocaleLoader.EnsureLoaded(); return AlienStrings.Mod_Description; }
+        }
 
         public void OnEnabled()
         {

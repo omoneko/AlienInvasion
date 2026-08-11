@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Stop"
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $msbuild = & $vswhere -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | Select-Object -First 1
 if (-not $msbuild) { throw "MSBuild not found" }
@@ -64,4 +64,14 @@ if (Test-Path $previewSrc) {
 } else {
     Write-Host "Note: $previewSrc not found; the Workshop preview stays as the placeholder."
 }
+# LocaleLoader reads Locales\<lang>.txt at runtime. en.txt is regenerated automatically when
+# missing, but shipping it keeps the Workshop copy in step with the repo.
+$localesSrc = "Locales"
+if (Test-Path $localesSrc) {
+    $localesDst = Join-Path $modDir "Locales"
+    New-Item -ItemType Directory -Force -Path $localesDst | Out-Null
+    Copy-Item (Join-Path $localesSrc "*") $localesDst -Include *.txt -Force
+    Write-Host "Deployed locales"
+}
+
 Write-Host "Deploy complete: $modDir"

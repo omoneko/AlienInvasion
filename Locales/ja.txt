@@ -1,0 +1,6 @@
+# Alien Invasion UI strings (Japanese).
+# Generated from en.txt; keys must match the field names in AlienStrings.cs.
+# Missing keys fall back to English, so this file may be partial.
+
+Mod_Description = UFOの母船が降下し、雷とクレーターで街を破壊したのち、レーザーを撃ちながら徘徊するトライポッドを展開して赤い汚染を残します。UFO ! ボタンまたは F7 キーで発生させます (同時に5体まで)。
+Button_Tooltip = UFO母船を出現させる地点を選択

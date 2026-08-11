@@ -1,0 +1,8 @@
+# Alien Invasion UI strings (English template).
+# To translate: copy this file to <language code>.txt using the code the game
+# reports (de/fr/es/zh/ja/...), translate the values, and keep the \n line-break
+# escapes. Missing keys fall back to English, so a partial file is fine.
+# Contributions welcome: https://github.com/omoneko/AlienInvasion
+
+Mod_Description = A UFO mothership descends, wrecks the city with lightning and a crater, then deploys roaming tripods that fire lasers and leave red contamination. Trigger it with the UFO ! button or the F7 key (up to 5 at once).
+Button_Tooltip = Select a location to summon the UFO mothership
