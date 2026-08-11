@@ -24,13 +24,13 @@ namespace AlienInvasion.Game
     ///  - Never throws. Any failure logs once and leaves English in place.
     ///
     /// <para>
-    /// Call it before the first string is read on each path. This mod has exactly two: the
-    /// Content Manager description (Mod.Description) and the summon button's tooltip
-    /// (InvasionUI). Note there is no OnSettingsUI here - this mod has no options page, so
-    /// unlike the author's other mods there is no entry for it on the game's Options screen and
-    /// no page that re-runs on a language change. Both strings are read once and keep the
-    /// language they were read in until the next level load; that is two strings, and rebuilding
-    /// the button on a locale change would cost more than it is worth.
+    /// Call it before the first string is read on each path: Mod.Description, Mod.OnSettingsUI
+    /// and the summon button's tooltip in InvasionUI. The options page picks up a language
+    /// change on its own - OptionsMainPanel.OnLocaleChanged calls CreateCategories, which re-runs
+    /// OnSettingsUI, and this runs again at the top of it. The in-game button does not: its
+    /// tooltip is set when the button is built, so it keeps the language the city was loaded in
+    /// until the next load. That is one tooltip, and rebuilding the button on a locale change
+    /// would cost more than it is worth.
     /// </para>
     /// </summary>
     internal static class LocaleLoader

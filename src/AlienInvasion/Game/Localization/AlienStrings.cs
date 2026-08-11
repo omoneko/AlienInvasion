@@ -4,10 +4,6 @@ namespace AlienInvasion.Game
     /// Every player-facing string, as a public static field whose initializer is the built-in
     /// English default.
     ///
-    /// There are only two, because this mod has no options screen at all: the Content Manager
-    /// description and the tooltip on the summon button. The full scheme is still used rather
-    /// than translating those two in place, so that anything added later is localizable for free
-    /// and the file layout matches the author's other mods.
     ///
     /// How localization works:
     ///  - The field name is the key in Locales/&lt;lang&gt;.txt.
@@ -35,5 +31,40 @@ namespace AlienInvasion.Game
 
         // --- In-game button ------------------------------------------------------------------------
         public static string Button_Tooltip = "Select a location to summon the UFO mothership";
+
+        // --- Options: summoning --------------------------------------------------------------------
+        public static string Options_InvasionGroup = "Invasion";
+        public static string Options_InvasionHelp =
+            "Open the Disasters info-view and click the UFO button (or press the hotkey below), " +
+            "then click a spot on the map to aim. The mothership descends there, tears a crater " +
+            "open, and deploys tripods that roam and fire until they leave.";
+        public static string Options_Hotkey = "Summon hotkey";
+        public static string Options_MaxConcurrent = "Maximum invasions at once";
+
+        // --- Options: random invasions ---------------------------------------------------------------
+        public static string Options_RandomGroup = "Random invasions (DESTRUCTIVE - off by default)";
+        public static string Options_RandomEnable =
+            "Enable random invasions - motherships WILL arrive on their own and destroy " +
+            "buildings, like a natural disaster. Leave this off to only summon them yourself.";
+        public static string Options_RandomAverageDays = "Average in-game days between invasions";
+        public static string Options_RandomHelp =
+            "Once switched on, one invasion arrives every so many in-game days on average - it is " +
+            "a roll once a day, not a schedule, so the actual gaps vary. Measured on the game " +
+            "clock, so it stops while the game is paused and follows the game speed. Nothing ever " +
+            "starts while another invasion is still running.";
+
+        // --- Options: aftermath ----------------------------------------------------------------------
+        public static string Options_AftermathGroup = "Aftermath";
+        public static string Options_Contamination = "Leave red contamination behind";
+        public static string Options_AftermathHelp =
+            "The red weed spreads around the crater and along the tripods' trail, and lifts by " +
+            "itself after a couple of in-game months. Turning this off stops new contamination; " +
+            "it does not clear what a previous invasion already left in this save.";
+
+        // --- Options: sound --------------------------------------------------------------------------
+        public static string Options_SoundGroup = "Sound";
+        public static string Options_UfoSound = "UFO arrival sound";
+        public static string Options_TripodSound = "Tripod footstep sound";
+        public static string Options_SoundVolume = "Sound volume";
     }
 }

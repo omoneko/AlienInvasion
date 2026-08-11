@@ -4,3 +4,22 @@
 
 Mod_Description = UFOの母船が降下し、雷とクレーターで街を破壊したのち、レーザーを撃ちながら徘徊するトライポッドを展開して赤い汚染を残します。UFO ! ボタンまたは F7 キーで発生させます (同時に5体まで)。
 Button_Tooltip = UFO母船を出現させる地点を選択
+
+Options_InvasionGroup = 侵略
+Options_InvasionHelp = 災害インフォビューを開いて UFO ボタンをクリック (または下のホットキー) し、マップ上の地点をクリックして狙いを定めます。母船がそこへ降下してクレーターを開け、徘徊しながら攻撃するトライポッドを展開します。
+Options_Hotkey = 召喚のホットキー
+Options_MaxConcurrent = 同時侵略数の上限
+
+Options_RandomGroup = ランダム侵略 (破壊的 - 既定はオフ)
+Options_RandomEnable = ランダム侵略を有効にする - 自然災害と同じように、母船が勝手に飛来して建物を破壊します。自分で呼び出すだけにしたい場合はオフのままにしてください。
+Options_RandomAverageDays = 侵略の平均間隔 (ゲーム内日数)
+Options_RandomHelp = オンにすると、平均してこの日数に1回の割合で侵略が発生します。スケジュールではなく1日ごとの抽選なので、実際の間隔にはばらつきがあります。ゲーム内時間で数えるため、一時停止中は進まず、ゲーム速度に追随します。他の侵略が進行中は新たに発生しません。
+
+Options_AftermathGroup = 侵略のあと
+Options_Contamination = 赤い汚染を残す
+Options_AftermathHelp = 赤い雑草がクレーター周辺とトライポッドの通り道に広がり、ゲーム内で数か月経つと自然に消えます。オフにすると新たな汚染が発生しなくなりますが、このセーブに既に残っている汚染は消えません。
+
+Options_SoundGroup = 音
+Options_UfoSound = UFOの飛来音
+Options_TripodSound = トライポッドの足音
+Options_SoundVolume = 音量

@@ -6,3 +6,18 @@
 
 Mod_Description = A UFO mothership descends, wrecks the city with lightning and a crater, then deploys roaming tripods that fire lasers and leave red contamination. Trigger it with the UFO ! button or the F7 key (up to 5 at once).
 Button_Tooltip = Select a location to summon the UFO mothership
+Options_InvasionGroup = Invasion
+Options_InvasionHelp = Open the Disasters info-view and click the UFO button (or press the hotkey below), then click a spot on the map to aim. The mothership descends there, tears a crater open, and deploys tripods that roam and fire until they leave.
+Options_Hotkey = Summon hotkey
+Options_MaxConcurrent = Maximum invasions at once
+Options_RandomGroup = Random invasions (DESTRUCTIVE - off by default)
+Options_RandomEnable = Enable random invasions - motherships WILL arrive on their own and destroy buildings, like a natural disaster. Leave this off to only summon them yourself.
+Options_RandomAverageDays = Average in-game days between invasions
+Options_RandomHelp = Once switched on, one invasion arrives every so many in-game days on average - it is a roll once a day, not a schedule, so the actual gaps vary. Measured on the game clock, so it stops while the game is paused and follows the game speed. Nothing ever starts while another invasion is still running.
+Options_AftermathGroup = Aftermath
+Options_Contamination = Leave red contamination behind
+Options_AftermathHelp = The red weed spreads around the crater and along the tripods' trail, and lifts by itself after a couple of in-game months. Turning this off stops new contamination; it does not clear what a previous invasion already left in this save.
+Options_SoundGroup = Sound
+Options_UfoSound = UFO arrival sound
+Options_TripodSound = Tripod footstep sound
+Options_SoundVolume = Sound volume

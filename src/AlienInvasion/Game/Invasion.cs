@@ -268,10 +268,18 @@ namespace AlienInvasion.Game
             DisasterHelpers.DestroyStuff(seed, null, _target, ModConfig.DestructionRadius, ModConfig.DestructionRadius, 0f,
                 ModConfig.DestructionRadius * 0.5f, ModConfig.DestructionRadius, ModConfig.DestructionRadius * 0.3f, ModConfig.DestructionRadius * 0.6f);
 
-            long startTicks = SimulationManager.instance.m_currentGameTime.Ticks;
-            var zone = new ContaminationZone(_target.x, _target.z, ModConfig.ContaminationRadius, startTicks);
-            ContaminationManager.AddZone(zone);
-            ModConfig.Log("Bombardment resolved: sinkhole+destruction+contamination at " + _target);
+            // The crater and the destruction always happen; only the red weed is optional.
+            if (ModSettings.ContaminationEnabled)
+            {
+                long startTicks = SimulationManager.instance.m_currentGameTime.Ticks;
+                var zone = new ContaminationZone(_target.x, _target.z, ModConfig.ContaminationRadius, startTicks);
+                ContaminationManager.AddZone(zone);
+                ModConfig.Log("Bombardment resolved: sinkhole+destruction+contamination at " + _target);
+            }
+            else
+            {
+                ModConfig.Log("Bombardment resolved: sinkhole+destruction at " + _target + " (contamination off)");
+            }
         }
     }
 }

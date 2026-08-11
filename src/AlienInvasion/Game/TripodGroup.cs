@@ -167,7 +167,8 @@ namespace AlienInvasion.Game
                 if (positions.Length == 0) return;
 
                 _trailTickCounter++;
-                if (_trailTickCounter >= ToApproxTicks(ModConfig.TripodTrailContamIntervalSeconds))
+                if (ModSettings.ContaminationEnabled &&
+                    _trailTickCounter >= ToApproxTicks(ModConfig.TripodTrailContamIntervalSeconds))
                 {
                     _trailTickCounter = 0;
                     long nowTicks = SimulationManager.instance.m_currentGameTime.Ticks;

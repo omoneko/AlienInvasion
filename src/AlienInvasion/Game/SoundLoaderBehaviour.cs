@@ -90,12 +90,14 @@ namespace AlienInvasion.Game
         public void PlayUfoArrival()
         {
             if (_ufo == null) return;
+            if (!ModSettings.UfoSoundEnabled) return;
             try
             {
                 var go = new GameObject("AlienInvasion_SFX_UFO");
                 var src = go.AddComponent<AudioSource>();
                 src.clip = _ufo;
-                src.volume = ModConfig.UfoSoundVolume;
+                // The constant stays the balance between the two sounds; the setting scales both.
+                src.volume = ModConfig.UfoSoundVolume * ModSettings.SoundVolume;
                 src.spatialBlend = 0f; // 2D
                 src.Play();
                 Object.Destroy(go, _ufo.length + 0.2f);
@@ -117,6 +119,18 @@ namespace AlienInvasion.Game
             EnsureTripodSource();
             try
             {
+                if (!ModSettings.TripodSoundEnabled)
+                {
+                    // Switched off mid-clip: stop what is playing rather than letting it finish.
+                    if (_tripodSource.isPlaying) _tripodSource.Stop();
+                    _tripodPausedMidClip = false;
+                    _tripodTimer = ModConfig.TripodStepIntervalSeconds;
+                    return;
+                }
+
+                // Followed live, so the slider takes effect without waiting for the next clip.
+                _tripodSource.volume = ModConfig.TripodSoundVolume * ModSettings.SoundVolume;
+
                 if (paused)
                 {
                     // While paused: pause anything playing and leave the timer alone.

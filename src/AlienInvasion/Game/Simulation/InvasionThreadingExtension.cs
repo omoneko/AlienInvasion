@@ -42,13 +42,10 @@ namespace AlienInvasion.Game.Simulation
         private int _pollutionTickCounter;
         private const int PollutionProcessInterval = 16;
 
-        // How often the random trigger is checked, in real seconds.
-        // ModConfig.RandomCheckIntervalTicks is expressed as a number of simulation ticks, but
-        // OnUpdate has no tick index, so it is converted crudely: one check every
-        // RandomCheckIntervalTicks / 100 seconds. The exact timing does not matter - all that
-        // matters is that the check happens periodically, on the main thread.
-        private const float RandomCheckIntervalSeconds = ModConfig.RandomCheckIntervalTicks / 100f;
-        private float _randomCheckTimer;
+        // The game time of the last random-invasion check. The schedule runs on the game clock,
+        // not real time, so it stops while paused and follows the game speed - the same basis as
+        // TripodActiveDays. 0 means "not primed yet"; see MaybeRollRandomInvasion.
+        private long _lastRandomCheckTicks;
 
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
         {
@@ -69,7 +66,7 @@ namespace AlienInvasion.Game.Simulation
                 // written in seconds still mean what they say.
                 bool paused = SimulationManager.instance.SimulationPaused;
 
-                if (Input.GetKeyDown(ModConfig.ManualTriggerKey) && InvasionManager.CanStartMore)
+                if (Input.GetKeyDown(ModSettings.Hotkey) && InvasionManager.CanStartMore)
                 {
                     // The hotkey does not start an invasion outright: it opens the same
                     // placement tool the UI button does, where you aim and left click to
@@ -86,9 +83,7 @@ namespace AlienInvasion.Game.Simulation
 
                 if (!paused)
                 {
-                    // The random trigger asks how much real time has passed before rolling
-                    // again, so it keeps using realTimeDelta.
-                    MaybeRollRandomInvasion(realTimeDelta);
+                    MaybeRollRandomInvasion();
                     // The invasion's visuals advance on simulationTimeDelta, following the game speed.
                     InvasionManager.UpdateVisual(simulationTimeDelta);
                 }
@@ -129,16 +124,30 @@ namespace AlienInvasion.Game.Simulation
         /// main-thread safe, and never touches SimulationManager.instance.m_randomizer, the
         /// RNG belonging to the simulation thread.
         /// </summary>
-        private void MaybeRollRandomInvasion(float realTimeDelta)
+        private void MaybeRollRandomInvasion()
         {
+            long nowTicks = SimulationManager.instance.m_currentGameTime.Ticks;
+
+            // Establish the baseline instead of rolling when there is none (a fresh extension
+            // instance, i.e. a level just loaded), or when the clock has moved backwards - which
+            // is what loading an earlier save looks like. Rolling in either case would measure
+            // against a date that has nothing to do with this city.
+            if (_lastRandomCheckTicks == 0 || nowTicks < _lastRandomCheckTicks)
+            {
+                _lastRandomCheckTicks = nowTicks;
+                return;
+            }
+
+            if (!RandomInvasionSchedule.IsCheckDue(_lastRandomCheckTicks, nowTicks)) return;
+            _lastRandomCheckTicks = nowTicks;
+
+            // Checked after the clock is advanced, so switching the setting on does not inherit a
+            // backlog of days that passed while it was off.
+            if (!ModSettings.RandomEnabled) return;
             if (InvasionManager.IsActive) return;
 
-            _randomCheckTimer += realTimeDelta;
-            if (_randomCheckTimer < RandomCheckIntervalSeconds) return;
-            _randomCheckTimer = 0f;
-
-            int roll = Mathf.FloorToInt(Random.Range(0f, 10000f));
-            if (roll >= ModConfig.RandomChancePer10000) return;
+            int roll = Mathf.FloorToInt(Random.Range(0f, RandomInvasionSchedule.RollRange));
+            if (!RandomInvasionSchedule.ShouldFire(ModSettings.RandomAverageDays, roll)) return;
 
             const float half = 8500f; // roughly the extent of the map
             float x = Random.Range(-half, half);

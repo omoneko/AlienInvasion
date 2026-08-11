@@ -48,29 +48,45 @@ namespace AlienInvasion.Game
             }
         }
 
-        /// <summary>Whether another invasion can start, i.e. whether it is below the cap.</summary>
+        /// <summary>
+        /// Whether another invasion can start, i.e. whether it is below the cap.
+        /// The cap is the player's setting, not the array length: _slots is sized once at static
+        /// init and never grows, so ModSettings.MaxConcurrent is clamped to it and only ever
+        /// restricts how many of those slots may be used.
+        /// </summary>
         public static bool CanStartMore
         {
-            get { return ActiveCount < _slots.Length; }
+            get { return ActiveCount < ModSettings.MaxConcurrent; }
         }
 
         /// <summary>
-        /// Main thread only. Starts a new invasion if a slot is free, and does nothing once
-        /// the cap is reached. It constructs a Mothership - Object.Instantiate plus transform
-        /// work - so it must never be called from the simulation thread.
+        /// Main thread only. Starts a new invasion if the cap allows it, and does nothing
+        /// otherwise. It constructs a Mothership - Object.Instantiate plus transform work - so it
+        /// must never be called from the simulation thread.
+        /// <para>
+        /// Lowering the cap while invasions are running never invalidates them: they finish
+        /// normally, and the next request is what gets refused.
+        /// </para>
         /// </summary>
         public static void StartInvasion(Vector3 targetPosition)
         {
+            int cap = ModSettings.MaxConcurrent;
+            if (ActiveCount >= cap)
+            {
+                ModConfig.Log("Invasion request ignored: already at max concurrent (" + cap + ")");
+                return;
+            }
+
             for (int i = 0; i < _slots.Length; i++)
             {
                 if (_slots[i] == null)
                 {
                     _slots[i] = new Invasion(targetPosition);
-                    ModConfig.Log("Invasion started at " + targetPosition + " (" + ActiveCount + "/" + _slots.Length + ")");
+                    ModConfig.Log("Invasion started at " + targetPosition + " (" + ActiveCount + "/" + cap + ")");
                     return;
                 }
             }
-            ModConfig.Log("Invasion request ignored: already at max concurrent (" + _slots.Length + ")");
+            ModConfig.Log("Invasion request ignored: no free slot (" + _slots.Length + ")");
         }
 
         /// <summary>Main thread only. Advances every slot's visuals by one frame and removes the ones that have finished.</summary>

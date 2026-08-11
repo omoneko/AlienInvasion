@@ -5,8 +5,8 @@ a sinkhole open with lightning and wrecks the surrounding city; three tripods th
 random, destroying buildings with their lasers and leaving a red contamination in their wake.
 
 - Target: Cities: Skylines (2015) / .NET Framework 3.5
-- Triggering: by hand (the **F7 key** or the **summon button**, then click a spot), plus a
-  low-probability random occurrence
+- Triggering: by hand (the **F7 key** or the **summon button**, then click a spot), plus an
+  optional random occurrence which is **off by default**
 - Contamination: lifts on its own after **2 in-game months**; nothing decontaminates it
 
 ## What happens
@@ -95,6 +95,21 @@ the logic still runs.
 
 | Control | What it does |
 |------|------|
-| **F7** | Opens the placement tool; left click a spot to start the invasion |
+| **F7** | Opens the placement tool; left click a spot to start the invasion. Rebindable in the options. |
 | **Summon button** | The same, from the button on screen |
-| Automatic | A low-probability draw at regular intervals starts an invasion at a random spot. It can be switched off and its frequency adjusted in `ModConfig`. |
+| Automatic | Off by default. Switch it on in the options and an invasion arrives every so many in-game days on average, at a random spot. |
+
+## Options
+
+- **Invasion** - the summon hotkey, and how many invasions may run at once (1-5).
+- **Random invasions** - off by default, because they destroy buildings without warning. Once on,
+  the average gap is set in in-game days: it is a roll once a day rather than a schedule, so the
+  actual gaps vary. It runs on the game clock, so it stops while paused and follows the game
+  speed, and nothing starts while another invasion is still running.
+- **Aftermath** - whether the red contamination is left behind. Turning it off stops new
+  contamination; it does not clear what an earlier invasion left in the save.
+- **Sound** - the arrival sound and the tripod footsteps separately, plus a volume.
+
+Before this existed, random invasions were always on but rolled on real time at odds that put the
+average gap at about 114 hours of play - so in practice nobody ever met one. The schedule now runs
+on the game clock at a rate the player sets.
