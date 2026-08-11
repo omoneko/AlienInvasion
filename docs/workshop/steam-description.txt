@@ -33,6 +33,9 @@ They came from the sky. A UFO mothership descends over your city, blasts it with
 
 Welcome your new overlords. Have fun out there. 🛸
 
+[h1]Language[/h1]
+English and Japanese - the game's own language setting picks between them.
+Other languages are welcome. The mod ships Locales/en.txt as a template: copy it to your language code (de.txt, fr.txt, zh.txt, ...), translate the values, and open a pull request on GitHub or post the file in the comments. Missing lines fall back to English, so a partial translation is fine.
 [h1]Source code[/h1]
 This mod is open source under the MIT licence. Bug reports and pull requests are welcome:
 [url=https://github.com/omoneko/AlienInvasion]github.com/omoneko/AlienInvasion[/url]
